@@ -6,3 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+console = "0.15.7"
+dialoguer = { version = "0.10.4", features = ["fuzzy-select"] }
+serialport = "4.2.2"
