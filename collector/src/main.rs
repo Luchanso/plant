@@ -1,36 +1,41 @@
-use console::Term;
-use dialoguer::{theme::ColorfulTheme, FuzzySelect};
-
-use std::time::Duration;
-
 mod port_info;
 
+use std::{thread, time};
+
+const BAUD_RATE: u32 = 9600;
+const PATH: &str = "COM3";
+const MIN_MSG_SIZE: u32 = 4;
+
 fn main() -> std::io::Result<()> {
-    let items = vec!["Item 1", "item 2"];
-    let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
-        .items(&items)
-        .default(0)
-        .interact_on_opt(&Term::stderr())?;
-
-    match selection {
-        Some(index) => println!("User selected item : {}", items[index]),
-        None => println!("User did not select anything"),
-    }
-
     port_info::print();
 
-    let mut port = serialport::new("COM3", 9_600)
-        .timeout(Duration::from_millis(10000))
+    let mut port = serialport::new(PATH, BAUD_RATE)
         .open()
         .expect("Failed to open port");
 
-    let mut serial_buf: Vec<u8> = vec![0; 32];
-    port.read(serial_buf.as_mut_slice())
-        .expect("Found no data!");
+    let mut data;
 
-    let string: String = String::from_utf8(serial_buf).expect("Found invalid UTF-8");
+    loop {
+        loop {
+            data = port.bytes_to_read().expect("Something went wrong");
 
-    println!("{:#?}", string);
+            if data > MIN_MSG_SIZE {
+                break;
+            }
+
+            thread::sleep(time::Duration::from_millis(500));
+
+            println!("bytes in buffer: {}", data);
+        }
+
+        let mut serial_buf: Vec<u8> = vec![0; data.try_into().unwrap()];
+
+        port.read(serial_buf.as_mut_slice())
+            .expect("Found no data!");
+
+        println!("{:#?}", data);
+        println!("{:#?}", serial_buf);
+    }
 
     Ok(())
 }
