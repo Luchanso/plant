@@ -11,8 +11,11 @@
 */
 ```
 
-1. Grafana draw grafics
-2. Select Path
-3. CRC
-4. Multi-threading or Async
-5. ***
+1. Multi-threading or Async
+2. Write SQLite file
+3. Docker-compose for Grafana
+4. Grafana draw grafics
+5. Docker container
+6. Select Path
+7. CRC
+8. ***

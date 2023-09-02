@@ -36,4 +36,7 @@ fn main() {
         println!("{:#?}", data);
         println!("{:#?}", serial_buf);
     }
+
+    // CRON?
+    // db.writeAnalogData(255, date.now())
 }
