@@ -6,7 +6,7 @@ const BAUD_RATE: u32 = 9600;
 const PATH: &str = "COM3";
 const MIN_MSG_SIZE: u32 = 4;
 
-fn main() -> std::io::Result<()> {
+fn main() {
     port_info::print();
 
     let mut port = serialport::new(PATH, BAUD_RATE)
@@ -36,6 +36,4 @@ fn main() -> std::io::Result<()> {
         println!("{:#?}", data);
         println!("{:#?}", serial_buf);
     }
-
-    Ok(())
 }
