@@ -11,9 +11,8 @@
 */
 ```
 
-1. Collect analog information from sensor and send to serial port
-2. Read data with Rust application
-3. Select Path
-4. CRC
-5. Multi-threading
-6. ***
+1. Grafana draw grafics
+2. Select Path
+3. CRC
+4. Multi-threading or Async
+5. ***
