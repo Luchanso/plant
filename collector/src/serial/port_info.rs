@@ -1,7 +1,17 @@
 use serialport::SerialPortType;
 
 pub fn print() {
-    let ports = serialport::available_ports().expect("No ports found!");
+    let ports = match serialport::available_ports() {
+        Ok(result) => {
+            println!("--- Available ports --- ");
+            result
+        }
+        Err(error) => {
+            println!("No available ports {:?}", error);
+            return;
+        }
+    };
+
     for p in ports {
         println!("  {}", p.port_name);
         match p.port_type {
