@@ -6,10 +6,13 @@ With random data
 MOCK=1 cargo run
 ```
 
-Production mod
+envs
 
 ```sh
-cargo run
+# Activate mock server
+MOCK=1
+# Setup serial port path
+PLANT_DEVICE=COM3 # for linux /dev/ttyS2
 ```
 
 ## Simple binary protocol
