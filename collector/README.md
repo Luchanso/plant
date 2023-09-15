@@ -1,3 +1,19 @@
+## Run
+
+With random data
+
+```sh
+MOCK=1 cargo run
+```
+
+Production mod
+
+```sh
+cargo run
+```
+
+## Simple binary protocol
+
 ```
 /*
  Simple binary protocol.
