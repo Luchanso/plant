@@ -4,6 +4,10 @@
 
 #include <inttypes.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  Simple binary protocol.
 
@@ -15,6 +19,8 @@
  3A 02 01 A0 77 ─── Maxim/Dallas integrated iButton CRC8
 Hence, the smallest possible message using this protocol is 4 bytes long.
 */
+
+#define PMC_MIN_MSG_LENGTH 4
 
 /// Plant message code, huh.
 typedef enum {
@@ -37,7 +43,7 @@ typedef enum {
  * Create a plant message.
  * @return zero-initialized plantMessage.
  */
-plantMessage* pmCreate();
+plantMessage *pmCreate();
 
 /**
  * Fill a \p result with a ADC result message.
@@ -45,44 +51,53 @@ plantMessage* pmCreate();
  * @param[out] result message to fill
  * @return true on success.
  */
-_Bool pmFillADCResult(const uint8_t ADCValue, struct plantMessage* result);
+_Bool pmFillADCResult(const uint8_t ADCValue, struct plantMessage *result);
 
 /**
  * Fill a \p result with a bad CRC message.
  * @param[out] result message to fill
  * @return true on success.
  */
-_Bool pmFillBadCRC(plantMessage* result);
+_Bool pmFillBadCRC(plantMessage *result);
 
 /**
  * Get a plant message code
  * @param msg message
  * @return plant message code
  */
-plantMessageCode pmGetMessageCode(const plantMessage* msg);
+plantMessageCode pmGetMessageCode(const plantMessage *msg);
 
 /**
  * Delete plant message in a proper manner.
- * @param[in,out] msg message to destroy. Will be NULL after running the function.
+ * @param[in,out] msg message to destroy. Will be NULL after running the
+ * function.
  */
-void pmDestroy(plantMessage* msg);
+void pmDestroy(plantMessage *msg);
 
 /**
  * Create raw byte array from a plantMessage
  * @param[in] input message to create array from
  * @param[out] buffer buffer to write message to
- * @param[in,out] bufferSize on input - max buffer size, on output - total output raw byte array length
+ * @param[in,out] bufferSize on input - max buffer size, on output - total
+ * output raw byte array length
  * @return true on success
  */
-_Bool pmSerialize(const plantMessage* input, uint8_t* buffer, uint8_t* bufferSize);
+_Bool pmSerialize(const plantMessage *input, uint8_t *buffer,
+                  uint8_t *bufferSize);
 
 /**
  * Attempt to parse a message
- * @param[in]  buffer raw received data buffer 
+ * @param[in]  buffer raw received data buffer
  * @param[in]  bufferSize buffer data size
  * @param[out] result parsed message
- * @return enum pmcParseResult describing state of message stored by result pointer.
- * NOTE: On succesful result or bad CRC raw message will be overwritten by 0's in \p buffer,
- *       if message is incomplete \p buffer will remain untouched.
+ * @return enum pmcParseResult describing state of message stored by result
+ * pointer. NOTE: On succesful result or bad CRC raw message will be overwritten
+ * by 0's in \p buffer, if message is incomplete \p buffer will remain
+ * untouched.
  */
-pmcParseResult pmParse(uint8_t* buffer, uint8_t bufferSize, plantMessage* result);
+pmcParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
+                       plantMessage *result);
+
+#if defined(__cplusplus)
+}
+#endif }

@@ -1,4 +1,10 @@
-use tokio::time::{sleep, Duration};
+use bytes::BytesMut;
+use tokio::{
+    io::AsyncReadExt,
+    time::{sleep, Duration},
+};
+use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
+use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 mod path;
 mod port_info;
@@ -6,45 +12,52 @@ mod port_info;
 const BAUD_RATE: u32 = 9600;
 const MIN_MSG_SIZE: u32 = 4;
 
+async fn measurement_request(mut port: SerialStream) {
+    // port.try_write();
+}
+
 pub async fn run() {
     let path = path::get();
 
     sleep(Duration::from_secs(1)).await;
 
-    let mut port = serialport::new(path, BAUD_RATE).open();
+    let _ = schedule().await;
 
-    match port {
-        Err(error) => {
-            println!("Cannot open serialport: {:?}", error);
-            port_info::print();
-        }
-        Ok(_) => (),
-    };
+    let mut port = tokio_serial::new(path, BAUD_RATE)
+        .open_native_async()
+        .unwrap();
 
-    // let mut data;
+    loop {
+        let mut buffer = BytesMut::with_capacity(10);
+        let _ = port.read_buf(&mut buffer).await;
 
-    // loop {
-    //     loop {
-    //         data = port.bytes_to_read().expect("Something went wrong");
+        println!("{:?}", &buffer[..]);
+    }
 
-    //         if data > MIN_MSG_SIZE {
-    //             break;
-    //         }
+    return;
 
-    //         thread::sleep(time::Duration::from_millis(500));
+    // let mut port = serialport::new(path, BAUD_RATE).open();
 
-    //         println!("bytes in buffer: {}", data);
+    // match port {
+    //     Err(error) => {
+    //         println!("Cannot open serialport: {:?}", error);
+    //         port_info::print();
     //     }
+    //     Ok(result) => read(result).await,
+    // };
+}
 
-    //     let mut serial_buf: Vec<u8> = vec![0; data.try_into().unwrap()];
+async fn schedule() -> Result<(), JobSchedulerError> {
+    let mut sched = JobScheduler::new().await?;
 
-    //     port.read(serial_buf.as_mut_slice())
-    //         .expect("Found no data!");
+    // Add basic cron job
+    sched.add(
+        Job::new("1/10 * * * * *", |_uuid, _l| {
+            println!("I run every 10 seconds");
+        })?
+    ).await?;
 
-    //     println!("{:#?}", data);
-    //     println!("{:#?}", serial_buf);
-    // }
+    sched.start().await?;
 
-    // CRON?
-    // db.writeAnalogData(255, date.now())
+    Ok(())
 }
