@@ -26,3 +26,5 @@ infra/grafana/grafana-data
 infra/prometheus/prometheus-data
 
 .env
+
+.vscode/settings.json
