@@ -3,6 +3,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -27,7 +28,8 @@ typedef enum {
   pmcUndefined = 0,
   pmcMeasurementRequest = 1,
   pmcMeasurementResult = 2,
-  pmcBadCRC = 3
+  pmcBadCRC = 254,
+  pmcBadRequest = 255
 } plantMessageCode;
 
 typedef struct plantMessage plantMessage;
@@ -37,7 +39,7 @@ typedef enum {
   prOk,            // message succesfully fetched
   prBadCrc,        // message failed to pass CRC
   prIncomplete     // message is yet to be received completely
-} pmcParseResult;
+} pmParseResult;
 
 /**
  * Create a plant message.
@@ -51,14 +53,21 @@ plantMessage *pmCreate();
  * @param[out] result message to fill
  * @return true on success.
  */
-_Bool pmFillADCResult(const uint8_t ADCValue, struct plantMessage *result);
+bool pmFillADCResult(const uint8_t ADCValue, struct plantMessage *result);
 
 /**
  * Fill a \p result with a bad CRC message.
  * @param[out] result message to fill
  * @return true on success.
  */
-_Bool pmFillBadCRC(plantMessage *result);
+bool pmFillBadCRC(plantMessage *result);
+
+/**
+ * Fill a \p result with a bad request message.
+ * @param[out] result message to fill
+ * @return true on success.
+ */
+bool pmFillBadRequest(plantMessage *result);
 
 /**
  * Get a plant message code
@@ -82,7 +91,7 @@ void pmDestroy(plantMessage *msg);
  * output raw byte array length
  * @return true on success
  */
-_Bool pmSerialize(const plantMessage *input, uint8_t *buffer,
+bool pmSerialize(const plantMessage *input, uint8_t *buffer,
                   uint8_t *bufferSize);
 
 /**
@@ -95,9 +104,9 @@ _Bool pmSerialize(const plantMessage *input, uint8_t *buffer,
  * by 0's in \p buffer, if message is incomplete \p buffer will remain
  * untouched.
  */
-pmcParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
+pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
                        plantMessage *result);
 
 #if defined(__cplusplus)
 }
-#endif }
+#endif

@@ -1,33 +1,86 @@
-#include "proto.h";
+#include "proto.h"
+#include "timers.h"
+#include "usart.h"
 
-#define MAX_BUFFER_SIZE 32
+plantMessage *inPm = NULL;
+plantMessage *outPm = NULL;
 
-plantMessage *inPm;
-plantMessage *outPm;
-
-uint8_t bufferSize = MAX_BUFFER_SIZE;
-uint8_t buffer[MAX_BUFFER_SIZE] = {};
 uint8_t lastResult = 0;
-_Bool LEDState = 1;
+bool LEDState = true;
+
+//Note: variables modified by Interrupt callbacks must have volatile keyword.
+volatile bool hasData = false;
+
+//Try to keep callbacks short, use the main loop to do the heavy lifting.
+void serialLineIdle() {
+  hasData = true;
+}
+
+void oneSecond() {
+  digitalWrite(LED_BUILTIN, LEDState);
+  LEDState = !LEDState;
+}
 
 void setup() {
+  pmSetupTimersInterrupts(&oneSecond, &serialLineIdle);
+  pmStartOneSecondTimer();
+  pmUSARTInit();
+
   inPm = pmCreate();
   outPm = pmCreate();
 
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
-  Serial.begin(9600);
 }
 
-// the loop function runs over and over again forever
+void handleIncomingMessage(const plantMessage *pm) {
+  plantMessageCode code = pmGetMessageCode(pm);
+  
+  switch (code) {
+    case pmcMeasurementRequest:
+      lastResult = analogRead(A0);
+      pmFillADCResult(lastResult, outPm);
+      pmUSARTSend(outPm);
+      break;
+
+    default:
+      pmFillBadRequest(outPm);
+      pmUSARTSend(outPm);
+  }
+}
+
 void loop() {
-  digitalWrite(LED_BUILTIN, LEDState);
-  delay(1000);
-  LEDState = !LEDState;
+  if (hasData) {
+    uint8_t *buffer = NULL;
+    uint8_t bytes = pmUSARTGetReceivedData(buffer);
 
-  lastResult = analogRead(A0);
+    if (bytes) {
+      pmParseResult parseResult = prUndefined;
+      do {
+        parseResult = pmParse(buffer, bytes, inPm);
 
-  pmFillADCResult(lastResult, outPm);
-  if( pmSerialize(outPm, buffer, &bufferSize) )
-    Serial.write(buffer, bufferSize);
+        switch (parseResult) {
+          case prOk:
+            handleIncomingMessage(inPm);
+            break;
+
+          case prBadCrc:
+            pmFillBadCRC(outPm);
+            pmUSARTSend(outPm);
+            break;
+
+          case prIncomplete:  // todo: message defragmentation
+          case prUndefined:
+            break;
+        }
+      } while (parseResult == prOk);
+
+      if (buffer) {
+        free(buffer);
+        buffer = NULL;
+      }
+    }
+    hasData = false;
+  }
+  // todo: sleep mode
 }

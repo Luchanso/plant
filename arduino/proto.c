@@ -8,11 +8,8 @@
 #define PMC_MSG_START_BYTE 0x3A
 #define PMC_MSG_PAYLOAD_OFFSET 3
 
-struct plantMessage {
-  plantMessageCode code;
-  uint8_t payloadSize;
-  uint8_t *payload;
-};
+#define __PLANT_MESSAGE_STRUCT
+#include "plant_message_struct.h"
 
 /**
  * Calculate CRC.
@@ -52,7 +49,9 @@ static void adjustPayloadSize(plantMessage *msg, uint8_t requiredPayloadSize) {
   msg->payloadSize = requiredPayloadSize;
 }
 
-plantMessage *pmCreate() { return calloc(1, sizeof(plantMessage)); }
+plantMessage *pmCreate() {
+  return calloc(1, sizeof(plantMessage));
+}
 
 void pmDestroy(plantMessage *msg) {
   if (!msg)
@@ -66,23 +65,30 @@ void pmDestroy(plantMessage *msg) {
   msg = NULL;
 }
 
-_Bool pmFillADCResult(const uint8_t ADCValue, plantMessage *result) {
+bool pmFillADCResult(const uint8_t ADCValue, plantMessage *result) {
   adjustPayloadSize(result, 1);
   result->code = pmcMeasurementResult;
   *result->payload = ADCValue;
 
-  return 1;
+  return true;
 }
 
-_Bool pmFillBadCRC(plantMessage *result) {
+bool pmFillBadCRC(plantMessage *result) {
   adjustPayloadSize(result, 0);
   result->code = pmcBadCRC;
 
-  return 1;
+  return true;
 }
 
-pmcParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
-                       plantMessage *result) {
+bool pmFillBadRequest(plantMessage *result) {
+  adjustPayloadSize(result, 0);
+  result->code = pmcBadRequest;
+
+  return true;
+}
+
+pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
+                      plantMessage *result) {
   if (!buffer || !result)
     return prUndefined;
 
@@ -93,9 +99,18 @@ pmcParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
   uint8_t *end = iterator + bufferSize;
 
   // Find message start
-  while (iterator != end)
+  while (iterator != end) {
     if (*iterator == PMC_MSG_START_BYTE)
       break;
+
+    ++iterator;
+  }
+
+  if (iterator == end)
+    return prUndefined;
+
+  if (end - iterator < 2)
+    return prIncomplete;
 
   bufferSize = end - iterator;
   uint8_t payloadLength = iterator[2];
@@ -105,7 +120,7 @@ pmcParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
     return prIncomplete;
 
   if (CRC(iterator, msgSize)) {
-    memset(iterator, 0, msgSize);
+    memset(buffer, 0, msgSize);
     return prBadCrc;
   }
 
@@ -115,16 +130,16 @@ pmcParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
     memcpy(result->payload, iterator + PMC_MSG_PAYLOAD_OFFSET, payloadLength);
 
   result->code = iterator[1];
-  memset(iterator, 0, msgSize);
+  memset(buffer, 0, msgSize);
 
   return prOk;
 }
 
-_Bool pmSerialize(const plantMessage *input, uint8_t *buffer,
+bool pmSerialize(const plantMessage *input, uint8_t *buffer,
                   uint8_t *bufferSize) {
   uint8_t msgSize = PMC_MIN_MSG_LENGTH + input->payloadSize;
   if (*bufferSize < msgSize)
-    return 0;
+    return false;
 
   buffer[0] = PMC_MSG_START_BYTE;
   buffer[1] = input->code;
@@ -136,5 +151,5 @@ _Bool pmSerialize(const plantMessage *input, uint8_t *buffer,
   buffer[msgSize - 1] = CRC(buffer, msgSize - 1);
 
   *bufferSize = msgSize;
-  return 1;
+  return true;
 }
