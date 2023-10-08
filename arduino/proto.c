@@ -17,7 +17,7 @@
  * @param length buffer size
  * @return For buffer with a correct CRC appended at the very end
  *         returns 0 if the CRC passed, any non-zero value means the message is
- * damaged. For buffer without a CRC in the end returns the CRC.
+ *         damaged. For buffer without a CRC in the end returns the CRC.
  */
 static uint8_t CRC(const uint8_t *buffer, const uint8_t length) {
   uint8_t crc = 0;
@@ -109,7 +109,7 @@ pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
   if (iterator == end)
     return prUndefined;
 
-  if (end - iterator < 2)
+  if (end - iterator < 3)
     return prIncomplete;
 
   bufferSize = end - iterator;
