@@ -18,6 +18,7 @@ const BAUD_RATE: u32 = 9600;
 const CRC: crc::Crc<u8> = crc::Crc::<u8>::new(&crc::CRC_8_MAXIM_DOW);
 
 async fn measurement_request() {
+    // 3a 01 00 70
     let message: Vec<u8> = vec![0x3A, 0x01, 0x00];
     let checksum = CRC.checksum(message.as_slice());
     let request_message = [message, vec![checksum]].concat();
@@ -30,6 +31,7 @@ async fn measurement_request() {
 
     match serial_stream {
         Ok(mut stream) => {
+            // to
             stream.write(request_message).await.unwrap();
             println!("Wrote {:?}", request_message);
             // stream.write_buf(&mut request_message).await.unwrap();
@@ -37,7 +39,7 @@ async fn measurement_request() {
             println!("Waiting");
             let mut read_buf = BytesMut::with_capacity(32);
             stream.read_buf(&mut read_buf).await.unwrap();
-            println!("result {:?}", read_buf.to_vec());
+            println!("result {:?}", read_buf);
         }
         Err(error) => {
             println!("Cannot open serialport: {:?}", error);

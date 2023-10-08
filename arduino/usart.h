@@ -5,11 +5,11 @@
 
 #include "proto.h"
 
-// Can be altered. Mind the hardware limitations of Atmega 328p!
-#define BAUDRATE 115200
-
 // Set the sizes of both the input and the output buffers, in bytes
 #define USART_BUFFER_SIZE 32
+
+extern volatile uint8_t rxBuffer[USART_BUFFER_SIZE];
+extern volatile uint8_t txBuffer[USART_BUFFER_SIZE];
 
 #if defined(__cplusplus)
 extern "C" {
@@ -18,6 +18,7 @@ extern "C" {
 /**
  * Initialize the Universal Synchronous/Asynchronous Receiver-Transmitter #0.
  * Must be executed once before sending and receiving data over USART.
+ * The baudrate is set to 115200
  */
 void pmUSARTInit();
 
@@ -33,7 +34,7 @@ void pmUSARTSend(const plantMessage* message);
  * You MUST free it once you done with it. Won't be modified unless data is available.
  * @return size of the \p buffer in bytes.
  */
-uint8_t pmUSARTCopyReceivedData(uint8_t* buffer);
+uint8_t pmUSARTCopyReceivedData(uint8_t** buffer);
 
 /**
  * Clear the receiver buffer.
@@ -43,7 +44,7 @@ void pmUSARTClearRxBuffer();
 /**
  * Send null-terminated debug string over serial using blocking I/O.
  * Since this function will block until the entire message is sent, it's not
- * recommended to use this function for anything else but debugging. 
+ * recommended to use this function for anything else but debugging.
  * @param message null-terminated string to send.
  */
 void USARTSendDebugText(const char * message);
@@ -52,7 +53,7 @@ void USARTSendDebugText(const char * message);
  * Send decimal debug number as string of ASCII characters over serial using
  * blocking I/O. Since this function will block until the entire message is
  * sent, it's not recommended to use this function for anything else but
- * debugging. 
+ * debugging.
  * @param number number to send.
  */
 void USARTSendDebugNumber(int32_t number);
