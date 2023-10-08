@@ -87,6 +87,10 @@ bool pmFillBadRequest(plantMessage *result) {
   return true;
 }
 
+plantMessageCode pmGetMessageCode(const plantMessage *msg) {
+  return msg->code;
+}
+
 pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
                       plantMessage *result) {
   if (!buffer || !result)

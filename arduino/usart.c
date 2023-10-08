@@ -18,16 +18,15 @@ https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcont
 */
 
 /*
-Using the handy formula, provided in the section 19.3.1 of the datasheet,
-in the table 19-1, calculate the USART Baud Rate Register value.
+Using the table 19-12 of the datasheet, select value for baudrate 9600
 */
-#define UBRRVAL ((F_CPU / (BAUDRATE * 16UL)) - 1)
+#define UBRRVAL 103
 
 // Dump all received bytes here
-static volatile uint8_t rxBuffer[USART_BUFFER_SIZE] = {};
+volatile uint8_t rxBuffer[USART_BUFFER_SIZE] = {};
 
 // Put all data to be sent here
-static volatile uint8_t txBuffer[USART_BUFFER_SIZE] = {};
+volatile uint8_t txBuffer[USART_BUFFER_SIZE] = {};
 
 static volatile uint8_t bytesReceived = 0;
 static volatile uint8_t bytesToSend = 0;
@@ -37,9 +36,8 @@ void pmUSARTInit() {
   cli();
   /*
   Set the Baud rate using USART Baud Rate Register 0
-  (that register has the size of 12 bits, hence the 0xFFF mask)
   */
-  UBRR0 = UBRRVAL & 0xFFF;
+  UBRR0 = UBRRVAL;
 
   /*
   Using USART 0 Control and Status Register 0 C, set operation mode:
@@ -72,12 +70,12 @@ void pmUSARTSend(const plantMessage* message) {
   bytesSent = 1;
 }
 
-uint8_t pmUSARTCopyReceivedData(uint8_t* buffer) {
+uint8_t pmUSARTCopyReceivedData(uint8_t** buffer) {
   if (!bytesReceived)
     return 0;
 
-  buffer = malloc(bytesReceived);
-  memcpy(buffer, (const uint8_t*)rxBuffer, bytesReceived);
+  *buffer = malloc(bytesReceived);
+  memcpy(*buffer, (const uint8_t*)rxBuffer, bytesReceived);
 
   return bytesReceived;
 }
@@ -88,6 +86,7 @@ void pmUSARTClearRxBuffer() {
 
 // Succesfully received one frame - stash it, or, if buffer is full, dispose it.
 ISR(USART_RX_vect) {
+  cli();
   if (bytesReceived < USART_BUFFER_SIZE) {
     rxBuffer[bytesReceived] = UDR0;
     ++bytesReceived;
@@ -96,6 +95,7 @@ ISR(USART_RX_vect) {
     pmStopSerialLineIdleTimer();
     pmStartSerialLineIdleTimer();
   }
+  sei();
 }
 
 // Succesfully transmitted one frame - transmit the next one if required.
@@ -107,19 +107,21 @@ ISR(USART_TX_vect) {
 }
 
 void USARTSendDebugText(const char * message) {
-  cli();
+  UCSR0B &= ~((1 << RXCIE0) | (1 << TXCIE0));
+
   while(*message) {
     // Wait for USART Data Register 0 to become empty before writing anything.
     while( !(UCSR0A & (1 << UDRE0)) );
     UDR0 = *message;
     ++message;
   }
-  sei();
+
+  UCSR0B |= (1 << RXCIE0) | (1 << TXCIE0);
 }
 
 void USARTSendDebugNumber(int32_t number) {
   // int32 will have at most 12 digits, including '-' and '\0'
-  char *buffer = malloc(12); 
+  char *buffer = malloc(12);
   snprintf(buffer, 12, "%ld", number);
   USARTSendDebugText(buffer);
   free(buffer);
