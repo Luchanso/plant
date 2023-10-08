@@ -40,19 +40,19 @@ void handleIncomingMessage(const plantMessage *pm) {
     case pmcMeasurementRequest:
       lastResult = analogRead(A0);
       pmFillADCResult(lastResult, outPm);
-      pmUSARTSend(outPm);
       break;
 
     default:
       pmFillBadRequest(outPm);
-      pmUSARTSend(outPm);
   }
+
+  pmUSARTSend(outPm);
 }
 
 void loop() {
   if (hasData) {
     uint8_t *buffer = NULL;
-    uint8_t bytes = pmUSARTGetReceivedData(buffer);
+    uint8_t bytes = pmUSARTCopyReceivedData(buffer);
 
     if (bytes) {
       pmParseResult parseResult = prUndefined;
@@ -69,11 +69,16 @@ void loop() {
             pmUSARTSend(outPm);
             break;
 
-          case prIncomplete:  // todo: message defragmentation
+          case prIncomplete: // todo: improve
+            if(bytes == USART_BUFFER_SIZE)
+              pmUSARTClearRxBuffer();
+            break;
+
           case prUndefined:
+            pmUSARTClearRxBuffer();
             break;
         }
-      } while (parseResult == prOk);
+      } while (parseResult != prUndefined || parseResult != prIncomplete);
 
       if (buffer) {
         free(buffer);

@@ -77,7 +77,7 @@ bool pmFillBadRequest(plantMessage *result);
 plantMessageCode pmGetMessageCode(const plantMessage *msg);
 
 /**
- * Delete plant message in a proper manner.
+ * Delete a plant message in a proper manner.
  * @param[in,out] msg message to destroy. Will be NULL after running the
  * function.
  */

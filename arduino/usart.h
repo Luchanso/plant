@@ -6,7 +6,7 @@
 #include "proto.h"
 
 // Can be altered. Mind the hardware limitations of Atmega 328p!
-#define BAUDRATE 9600
+#define BAUDRATE 115200
 
 // Set the sizes of both the input and the output buffers, in bytes
 #define USART_BUFFER_SIZE 32
@@ -22,18 +22,40 @@ extern "C" {
 void pmUSARTInit();
 
 /**
- * Send a plant monitor message.
+ * Send a plant monitor message asynchroniosly.
  * @param message message to send.
  */
 void pmUSARTSend(const plantMessage* message);
 
 /**
- * Move data from the receiver buffer to heap-allocated memory.
+ * Copy data from the receiver buffer to heap-allocated memory.
  * @param[out] buffer pointer to heap-allocated copy of the buffer.
  * You MUST free it once you done with it. Won't be modified unless data is available.
  * @return size of the \p buffer in bytes.
  */
-uint8_t pmUSARTGetReceivedData(uint8_t* buffer);
+uint8_t pmUSARTCopyReceivedData(uint8_t* buffer);
+
+/**
+ * Clear the receiver buffer.
+ */
+void pmUSARTClearRxBuffer();
+
+/**
+ * Send null-terminated debug string over serial using blocking I/O.
+ * Since this function will block until the entire message is sent, it's not
+ * recommended to use this function for anything else but debugging. 
+ * @param message null-terminated string to send.
+ */
+void USARTSendDebugText(const char * message);
+
+/**
+ * Send decimal debug number as string of ASCII characters over serial using
+ * blocking I/O. Since this function will block until the entire message is
+ * sent, it's not recommended to use this function for anything else but
+ * debugging. 
+ * @param number number to send.
+ */
+void USARTSendDebugNumber(int32_t number);
 
 #if defined(__cplusplus)
 }
