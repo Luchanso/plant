@@ -1,8 +1,9 @@
-#include "usart.h"
 #include <avr/interrupt.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
+#include "usart.h"
 #include "proto.h"
 
 #define __PLANT_MESSAGE_STRUCT
@@ -71,16 +72,18 @@ void pmUSARTSend(const plantMessage* message) {
   bytesSent = 1;
 }
 
-uint8_t pmUSARTGetReceivedData(uint8_t* buffer) {
+uint8_t pmUSARTCopyReceivedData(uint8_t* buffer) {
   if (!bytesReceived)
     return 0;
 
-  uint8_t bufferSize = bytesReceived;
   buffer = malloc(bytesReceived);
-  memcpy(buffer, (const uint8_t*)rxBuffer, bufferSize);
-  bytesReceived = 0;
+  memcpy(buffer, (const uint8_t*)rxBuffer, bytesReceived);
 
-  return bufferSize;
+  return bytesReceived;
+}
+
+void pmUSARTClearRxBuffer() {
+  bytesReceived = 0;
 }
 
 // Succesfully received one frame - stash it, or, if buffer is full, dispose it.
@@ -88,6 +91,9 @@ ISR(USART_RX_vect) {
   if (bytesReceived < USART_BUFFER_SIZE) {
     rxBuffer[bytesReceived] = UDR0;
     ++bytesReceived;
+
+    // Restart line idle detection
+    pmStopSerialLineIdleTimer();
     pmStartSerialLineIdleTimer();
   }
 }
@@ -98,4 +104,23 @@ ISR(USART_TX_vect) {
     UDR0 = txBuffer[bytesSent];
     ++bytesSent;
   }
+}
+
+void USARTSendDebugText(const char * message) {
+  cli();
+  while(*message) {
+    // Wait for USART Data Register 0 to become empty before writing anything.
+    while( !(UCSR0A & (1 << UDRE0)) );
+    UDR0 = *message;
+    ++message;
+  }
+  sei();
+}
+
+void USARTSendDebugNumber(int32_t number) {
+  // int32 will have at most 12 digits, including '-' and '\0'
+  char *buffer = malloc(12); 
+  snprintf(buffer, 12, "%ld", number);
+  USARTSendDebugText(buffer);
+  free(buffer);
 }
