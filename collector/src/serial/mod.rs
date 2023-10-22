@@ -1,14 +1,10 @@
-use std::str::from_utf8;
-
 use bytes::{Buf, BytesMut};
 use crc;
-use serialport::SerialPort;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    time::{sleep, Duration},
-};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 use tokio_serial::SerialPortBuilderExt;
+
+use crate::metrics::GROUND_MOISTURE;
 
 mod path;
 mod port_info;
@@ -39,6 +35,15 @@ async fn measurement_request() {
             println!("Waiting");
             let mut read_buf = BytesMut::with_capacity(32);
             stream.read_buf(&mut read_buf).await.unwrap();
+
+            let checksum = CRC.checksum(read_buf.chunk());
+
+            if checksum != 0 {
+                println!("Checksum don't match");
+            }
+
+            GROUND_MOISTURE.set(read_buf.chunk()[3].into());
+
             println!("result {:?}", read_buf);
         }
         Err(error) => {
@@ -49,18 +54,18 @@ async fn measurement_request() {
 }
 
 pub async fn run() -> Result<(), JobSchedulerError> {
-    measurement_request().await;
-    // let scheduler = JobScheduler::new().await?;
-    // let job = Job::new_async("1/3 * * * * *", move |_uuid, mut job| {
-    //     Box::pin(async move {
-    //         let _ = job.shutdown().await;
-    //         measurement_request().await;
-    //     })
-    // })
-    // .unwrap();
+    // measurement_request().await;
+    let scheduler = JobScheduler::new().await?;
+    let job = Job::new_async("1/3 * * * * *", move |_uuid, mut job| {
+        Box::pin(async move {
+            // let _ = job.shutdown().await;
+            measurement_request().await;
+        })
+    })
+    .unwrap();
 
-    // scheduler.add(job).await?;
-    // scheduler.start().await?;
+    scheduler.add(job).await?;
+    scheduler.start().await?;
 
     Ok(())
 }
