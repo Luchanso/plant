@@ -82,7 +82,47 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"ground_mousture\", instance=\"host.docker.internal:3001\", job=\"collector\"}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73bf69",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "255 - {__name__=\"ground_mousture\", instance=\"host.docker.internal:3001\", job=\"collector\"}"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 20,
@@ -93,7 +133,9 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -113,6 +155,7 @@
           "editorMode": "builder",
           "expr": "ground_mousture",
           "fullMetaSearch": false,
+          "hide": false,
           "includeNullMetadata": true,
           "instant": false,
           "legendFormat": "__auto",
@@ -122,10 +165,31 @@
         }
       ],
       "title": "Ground Moisture",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": "255",
+              "operator": "-",
+              "reducer": "sum",
+              "right": "{__name__=\"ground_mousture\", instance=\"host.docker.internal:3001\", job=\"collector\"}"
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [
+                "{__name__=\"ground_mousture\", instance=\"host.docker.internal:3001\", job=\"collector\"}"
+              ],
+              "reducer": "allValues"
+            },
+            "replaceFields": false
+          }
+        }
+      ],
       "type": "timeseries"
     }
   ],
-  "refresh": "",
+  "refresh": false,
   "schemaVersion": 38,
   "style": "dark",
   "tags": [],
@@ -133,13 +197,13 @@
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Plant",
   "uid": "a5b65809-3a5f-4c3e-bff5-140e328f7f1f",
-  "version": 2,
+  "version": 5,
   "weekStart": ""
 }
