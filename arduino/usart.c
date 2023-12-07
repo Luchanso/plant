@@ -18,9 +18,9 @@ https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcont
 */
 
 /*
-Using the table 19-12 of the datasheet, select value for baudrate 9600
+Using the table 19-12 of the datasheet, select value for baudrate 115200
 */
-#define UBRRVAL 103
+#define UBRRVAL 8
 
 // Dump all received bytes here
 volatile uint8_t rxBuffer[USART_BUFFER_SIZE] = {};
@@ -61,7 +61,7 @@ void pmUSARTInit() {
   sei();
 }
 
-void pmUSARTSend(const plantMessage* message) {
+void pmUSARTSend(const plantMessage *message) {
   bytesToSend = USART_BUFFER_SIZE;
   pmSerialize(message, (uint8_t*)txBuffer, (uint8_t*)&bytesToSend);
 
@@ -70,7 +70,7 @@ void pmUSARTSend(const plantMessage* message) {
   bytesSent = 1;
 }
 
-uint8_t pmUSARTCopyReceivedData(uint8_t** buffer) {
+uint8_t pmUSARTCopyReceivedData(uint8_t **buffer) {
   if (!bytesReceived)
     return 0;
 
@@ -106,7 +106,7 @@ ISR(USART_TX_vect) {
   }
 }
 
-void USARTSendDebugText(const char * message) {
+void pmUSARTSendDebugText(const char *message) {
   UCSR0B &= ~((1 << RXCIE0) | (1 << TXCIE0));
 
   while(*message) {
@@ -119,10 +119,10 @@ void USARTSendDebugText(const char * message) {
   UCSR0B |= (1 << RXCIE0) | (1 << TXCIE0);
 }
 
-void USARTSendDebugNumber(int32_t number) {
+void pmUSARTSendDebugNumber(int32_t number) {
   // int32 will have at most 12 digits, including '-' and '\0'
   char *buffer = malloc(12);
   snprintf(buffer, 12, "%ld", number);
-  USARTSendDebugText(buffer);
+  pmUSARTSendDebugText(buffer);
   free(buffer);
 }

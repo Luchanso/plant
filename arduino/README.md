@@ -1,4 +1,4 @@
-Atmel AtMega328p Xplained mini
+Atmel AtMega328p (Arduino Nano 5v w/Old bootloader)
 
 ## Simple binary protocol
 
@@ -12,6 +12,6 @@ Atmel AtMega328p Xplained mini
  │  │  ┌─────────── Payload length: 0x01 - payload contains one byte
  │  │  │  ┌──────── Message payload: 0xA0 - ADC measurement = 160
  3A 02 01 A0 77 ─── Maxim/Dallas integrated iButton CRC8
-Hence, the smallest possible message using this protocol is 4 bytes long.
+Hence, the smallest possible message for this protocol is 4 bytes long.
 */
 ```

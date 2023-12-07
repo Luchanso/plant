@@ -73,6 +73,38 @@ bool pmFillADCResult(const uint8_t ADCValue, plantMessage *result) {
   return true;
 }
 
+bool pmFillTime(const time* const t, struct plantMessage *result) {
+  adjustPayloadSize(result, sizeof(time));
+  result->code = pmcRTCTime;
+
+  //We can get away with this on 8-bit CPU due to basically non-existent memory alignment. 
+  //Not recommended on any sophisticated CPUs!
+  //TODO: rewrite this!
+  memcpy(result->payload, t, sizeof(time));
+
+  return true;
+}
+
+bool pmGetTime(const plantMessage *const input, time *t) {
+  if( !(input->code == pmcRTCTime     ||
+        input->code == pmcSetRTCTime  ||
+        input->code == pmcGetRTCTime) ||
+      input->payloadSize != sizeof(time) )
+    return false;
+
+  //TODO: rewrite this!
+  memcpy(t, input->payload, sizeof(time));
+
+  return true;
+}
+
+bool pmFillHardwareError(plantMessage *result) {
+  adjustPayloadSize(result, 0);
+  result->code = pmcHardwareError;
+
+  return true;
+}
+
 bool pmFillBadCRC(plantMessage *result) {
   adjustPayloadSize(result, 0);
   result->code = pmcBadCRC;

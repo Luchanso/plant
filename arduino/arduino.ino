@@ -1,12 +1,15 @@
 #include "proto.h"
 #include "timers.h"
 #include "usart.h"
+#include "i2c.h"
+#include "ds3231.h"
 
 plantMessage *inPm = NULL;
 plantMessage *outPm = NULL;
 
 uint8_t lastResult = 0;
 bool LEDState = true;
+time systemTime = {};
 
 // Note: variables modified by Interrupt callbacks must have volatile keyword.
 volatile bool hasData = false;
@@ -23,6 +26,7 @@ void setup() {
   pmSetupTimersInterrupts(&oneSecond, &serialLineIdle);
   pmStartOneSecondTimer();
   pmUSARTInit();
+  pmI2CInit();
 
   inPm = pmCreate();
   outPm = pmCreate();
@@ -40,6 +44,22 @@ void handleIncomingMessage(const plantMessage *pm) {
     pmFillADCResult(lastResult, outPm);
     break;
 
+  case pmcGetRTCTime:
+    if(pmDS3231ReadTime(&systemTime))
+      pmFillTime(&systemTime, outPm);
+    else
+      pmFillHardwareError(outPm);
+    break;
+
+  case pmcSetRTCTime:
+    if(pmGetTime(inPm, &systemTime)) {
+      if(pmDS3231SetTime(&systemTime))
+        pmFillTime(&systemTime, outPm);
+      else
+        pmFillHardwareError(outPm);
+    }
+    break;
+
   default:
     pmFillBadRequest(outPm);
   }
@@ -47,33 +67,18 @@ void handleIncomingMessage(const plantMessage *pm) {
   pmUSARTSend(outPm);
 }
 
-// 3a 01 00 70
+// 3a 01 00 70 -- measurement
+// 3a 03 00 e1 -- time
 void loop() {
   if (hasData) {
-    // USARTSendDebugText("hasData = true\n");
     uint8_t *buffer = NULL;
     uint8_t bytes = pmUSARTCopyReceivedData(&buffer);
-
-    // USARTSendDebugText("loop() bytes received: ");
-    // USARTSendDebugNumber(bytes);
-    // USARTSendDebugText("\n");
-
-    // for (uint8_t i = 0; i < bytes; i++) {
-    //   USARTSendDebugNumber(buffer[i]);
-    //   USARTSendDebugText(" ");
-    // }
-
-    // USARTSendDebugText("\n");
 
     if (bytes) {
       pmParseResult parseResult = prUndefined;
 
       do {
         parseResult = pmParse(buffer, bytes, inPm);
-
-        // USARTSendDebugText("parseResult = ");
-        // USARTSendDebugNumber(parseResult);
-        // USARTSendDebugText("\n");
 
         switch (parseResult) {
         case prOk:
@@ -102,8 +107,5 @@ void loop() {
       }
     }
     hasData = false;
-
-    // USARTSendDebugText("loop() end\n");
   }
-  // todo: sleep mode
 }
