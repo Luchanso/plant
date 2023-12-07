@@ -5,11 +5,8 @@
 
 #include "proto.h"
 
-// Set the sizes of both the input and the output buffers, in bytes
+// Set sizes of both the input and the output buffers, in bytes
 #define USART_BUFFER_SIZE 32
-
-extern volatile uint8_t rxBuffer[USART_BUFFER_SIZE];
-extern volatile uint8_t txBuffer[USART_BUFFER_SIZE];
 
 #if defined(__cplusplus)
 extern "C" {
@@ -26,15 +23,15 @@ void pmUSARTInit();
  * Send a plant monitor message asynchroniosly.
  * @param message message to send.
  */
-void pmUSARTSend(const plantMessage* message);
+void pmUSARTSend(const plantMessage *message);
 
 /**
  * Copy data from the receiver buffer to heap-allocated memory.
  * @param[out] buffer pointer to heap-allocated copy of the buffer.
  * You MUST free it once you done with it. Won't be modified unless data is available.
- * @return size of the \p buffer in bytes.
+ * @return size of the @p buffer in bytes.
  */
-uint8_t pmUSARTCopyReceivedData(uint8_t** buffer);
+uint8_t pmUSARTCopyReceivedData(uint8_t **buffer);
 
 /**
  * Clear the receiver buffer.
@@ -47,7 +44,7 @@ void pmUSARTClearRxBuffer();
  * recommended to use this function for anything else but debugging.
  * @param message null-terminated string to send.
  */
-void USARTSendDebugText(const char * message);
+void pmUSARTSendDebugText(const char *message);
 
 /**
  * Send decimal debug number as string of ASCII characters over serial using
@@ -56,7 +53,7 @@ void USARTSendDebugText(const char * message);
  * debugging.
  * @param number number to send.
  */
-void USARTSendDebugNumber(int32_t number);
+void pmUSARTSendDebugNumber(int32_t number);
 
 #if defined(__cplusplus)
 }
