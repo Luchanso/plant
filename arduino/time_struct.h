@@ -3,7 +3,7 @@
 
 // Just a definition of the time struct
 
-typedef struct time {
+typedef struct {
   uint8_t year; //year of the century, i.e. can have value from 0 to 99
   uint8_t month;
   uint8_t dayOfMonth; //can have value from 1 to 31
