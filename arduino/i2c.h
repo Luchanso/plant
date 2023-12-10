@@ -11,7 +11,7 @@ This code assumes there is only one master device and it's this one.
 #define I2C_SCL_PIN 5
 #define I2C_SDA_PIN 4
 
-#define I2C_SCL_FREQ 400000L
+#define I2C_SCL_FREQ 400000
 
 #include <stdbool.h>
 

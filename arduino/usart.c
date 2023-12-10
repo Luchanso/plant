@@ -13,7 +13,7 @@
 #include "timer_usart.h"
 
 /*
-Refer to Atmega328p datasheet, section 19
+Refer to Atmega328p datasheet, section 19:
 https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf
 */
 

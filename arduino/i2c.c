@@ -3,7 +3,7 @@
 #include "i2c.h"
 
 /*
-Refer to Atmega328p datasheet, section 21
+Refer to Atmega328p datasheet, section 21:
 https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf
 */
 
@@ -17,15 +17,18 @@ https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcont
 #define I2C_SCL_P EVALUATE3(PORT, I2C_PORT_LABEL, I2C_SCL_PIN)
 #define I2C_SDA_P EVALUATE3(PORT, I2C_PORT_LABEL, I2C_SDA_PIN)
 
+// Note, for most common I2C frequencies using prescaler is not required.
+#define I2C_PRESCALER 1
+
 /*
-Solving the formula
+Solving the formula provided by Atmel in Unit 21.5.2 of datasheet for TWBR:
 SCL frequency = CPU frequency / (16 + 2 * TWBR * Prescaler value)
-provided by Atmel in Unit 21.5.2 of datasheet for TWBR, we'll get:
+we'll get:
 */
-#define I2C_PRESCALER 1L
 #define I2C_TWBR ((F_CPU/I2C_SCL_FREQ - 16) / 2 / I2C_PRESCALER)
 
 void pmI2CInit() {
+  // Pull I2C pins high and leave them to I2C peripheral
   I2C_DDR  |=  (1 << I2C_SDA_P)  | (1 << I2C_SCL_P);
   I2C_PORT |=  (1 << I2C_SDA_P)  | (1 << I2C_SCL_P);
   I2C_DDR  &= ~((1 << I2C_SDA_P) | (1 << I2C_SCL_P));
@@ -122,10 +125,10 @@ bool pmI2CRead(const uint8_t address, const uint8_t deviceRegister, const uint8_
 
 	// Read single or multiple data byte and send ack
 	for (uint8_t i = 0; i < length - 1; ++i)
-		if(!pmI2CReadByte(&data[i], true))
+		if(!pmI2CReadByte(data + i, true))
       return false;
 
-  if(!pmI2CReadByte(&data[length - 1], false))
+  if(!pmI2CReadByte(data - 1 + length, false))
     return false;
 
 	// Send STOP condition
