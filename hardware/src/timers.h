@@ -9,10 +9,13 @@ extern "C" {
 
 /**
  * Init hardwire timer 1 and COMPA/COMPB interrupts.
- * @param OneSecondCallback this callback will be called every second as long as one second timer is running.
- * @param LineIdleCallback this callback be called after 3.5 characters of silence on receiving side of USART.
+ * @param OneSecondCallback this callback will be called every second as long as
+ * one second timer is running.
+ * @param LineIdleCallback this callback be called after 3.5 characters of
+ * silence on receiving side of USART.
  */
-void pmSetupTimersInterrupts(void (*OneSecondCallback)(), void (*LineIdleCallback)());
+void pmSetupTimersInterrupts(void (*OneSecondCallback)(),
+                             void (*LineIdleCallback)());
 
 /*
  * Enable the timer 1 interrupt each second.

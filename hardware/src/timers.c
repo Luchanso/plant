@@ -25,11 +25,11 @@ void (*oneSecondCallback)() = 0;
 void (*lineIdleCallback)() = 0;
 
 void pmSetupTimersInterrupts(void (*callbackA)(), void (*callbackB)()) {
-  cli();  //stop interrupts
+  cli(); // stop interrupts
 
-  TCCR1A = 0;  // Clear TCCR1A register
-  TCCR1B = 0;  // Clear TCCR1B register
-  TCNT1 = 0;   // Reset Timer CouNTer 1
+  TCCR1A = 0; // Clear TCCR1A register
+  TCCR1B = 0; // Clear TCCR1B register
+  TCNT1 = 0;  // Reset Timer CouNTer 1
 
   /*
   Adjust Timer 1 Control register B to set the prescaler to F_CPU/256.
@@ -41,7 +41,7 @@ void pmSetupTimersInterrupts(void (*callbackA)(), void (*callbackB)()) {
   oneSecondCallback = callbackA;
   lineIdleCallback = callbackB;
 
-  sei(); //allow interrupts
+  sei(); // allow interrupts
 }
 
 void pmStartOneSecondTimer() {
