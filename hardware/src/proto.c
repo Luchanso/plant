@@ -41,7 +41,7 @@ static void adjustPayloadSize(plantMessage *msg, uint8_t requiredPayloadSize) {
       free(msg->payload);
       msg->payload = NULL;
     } else if (msg->payloadSize != requiredPayloadSize) {
-      realloc(msg->payload, requiredPayloadSize);
+      msg->payload = realloc(msg->payload, requiredPayloadSize);
     }
   } else if (requiredPayloadSize) {
     msg->payload = malloc(requiredPayloadSize);
@@ -49,9 +49,7 @@ static void adjustPayloadSize(plantMessage *msg, uint8_t requiredPayloadSize) {
   msg->payloadSize = requiredPayloadSize;
 }
 
-plantMessage *pmCreate() {
-  return calloc(1, sizeof(plantMessage));
-}
+plantMessage *pmCreate() { return calloc(1, sizeof(plantMessage)); }
 
 void pmDestroy(plantMessage *msg) {
   if (!msg)
@@ -73,26 +71,25 @@ bool pmFillADCResult(const uint8_t ADCValue, plantMessage *result) {
   return true;
 }
 
-bool pmFillTime(const time* const t, struct plantMessage *result) {
+bool pmFillTime(const time *const t, struct plantMessage *result) {
   adjustPayloadSize(result, sizeof(time));
   result->code = pmcRTCTime;
 
-  //We can get away with this on 8-bit CPU due to basically non-existent memory alignment. 
-  //Not recommended on any sophisticated CPUs!
-  //TODO: rewrite this!
+  // We can get away with this on 8-bit CPU due to basically non-existent memory
+  // alignment. Not recommended on any sophisticated CPUs!
+  // TODO: rewrite this!
   memcpy(result->payload, t, sizeof(time));
 
   return true;
 }
 
 bool pmGetTime(const plantMessage *const input, time *t) {
-  if( !(input->code == pmcRTCTime     ||
-        input->code == pmcSetRTCTime  ||
+  if (!(input->code == pmcRTCTime || input->code == pmcSetRTCTime ||
         input->code == pmcGetRTCTime) ||
-      input->payloadSize != sizeof(time) )
+      input->payloadSize != sizeof(time))
     return false;
 
-  //TODO: rewrite this!
+  // TODO: rewrite this!
   memcpy(t, input->payload, sizeof(time));
 
   return true;
@@ -119,9 +116,7 @@ bool pmFillBadRequest(plantMessage *result) {
   return true;
 }
 
-plantMessageCode pmGetMessageCode(const plantMessage *msg) {
-  return msg->code;
-}
+plantMessageCode pmGetMessageCode(const plantMessage *msg) { return msg->code; }
 
 pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
                       plantMessage *result) {
@@ -172,7 +167,7 @@ pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
 }
 
 bool pmSerialize(const plantMessage *input, uint8_t *buffer,
-                  uint8_t *bufferSize) {
+                 uint8_t *bufferSize) {
   uint8_t msgSize = PMC_MIN_MSG_LENGTH + input->payloadSize;
   if (*bufferSize < msgSize)
     return false;

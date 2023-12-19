@@ -1,7 +1,7 @@
 ##########################################################################
 #
 # Shamelessly borrowed from https://github.com/igormiktor/cmake-avr-toolchain
-# and then modified to be compatible with the "target_sources" function by
+# and then ~~vandalized~~ modified to be compatible with newer CMake idioms 
 # @BortEngineerDude
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -284,6 +284,7 @@ function( add_avr_executable EXECUTABLE_NAME )
         ${EXECUTABLE_NAME}
         PUBLIC
         -ffunction-sections
+        --param=min-pagesize=0
         -fdata-sections
         -fpack-struct
         -fshort-enums
@@ -294,7 +295,7 @@ function( add_avr_executable EXECUTABLE_NAME )
    )
 
    target_link_libraries(
-        ${EXECUTABLE_NAME} "-mmcu=${AVR_MCU} -Wl,--gc-sections -mrelax -Wl,-Map,${map_file}"
+        ${EXECUTABLE_NAME} "-mmcu=${AVR_MCU}  -Wl,--gc-sections -mrelax -Wl,-Map,${map_file}"
     )
 
    set_target_properties(
@@ -386,10 +387,6 @@ function( add_avr_executable EXECUTABLE_NAME )
 
 endfunction( add_avr_executable )
 
-
-
-
-
 ##########################################################################
 # add_avr_library
 # - IN_VAR: LIBRARY_NAME
@@ -408,16 +405,17 @@ function( add_avr_library LIBRARY_NAME )
 
    set( lib_file ${LIBRARY_NAME}${MCU_TYPE_FOR_FILENAME} )
 
-   add_library( ${lib_file} STATIC ${ARGN} )
+   add_library( ${LIBRARY_NAME} STATIC ${ARGN} )
 
    set_target_properties(
-      ${lib_file}
+      ${LIBRARY_NAME}
       PROPERTIES
          OUTPUT_NAME "${lib_file}"
    )
 
-   target_compile_options( ${lib_file} PUBLIC
+   target_compile_options( ${LIBRARY_NAME} PUBLIC
         -ffunction-sections
+        --param=min-pagesize=0
         -fdata-sections
         -fpack-struct
         -fshort-enums
@@ -427,27 +425,7 @@ function( add_avr_library LIBRARY_NAME )
         -DF_CPU=${AVR_MCU_SPEED}
    )
 
-   if( NOT TARGET ${LIBRARY_NAME} )
-      add_custom_target(
-         ${LIBRARY_NAME}
-         ALL
-         DEPENDS ${lib_file}
-      )
-
-      set_target_properties(
-         ${LIBRARY_NAME}
-         PROPERTIES
-            OUTPUT_NAME "${lib_file}"
-      )
-   endif( NOT TARGET ${LIBRARY_NAME} )
-
 endfunction( add_avr_library )
-
-
-
-
-
-
 
 ##########################################################################
 # avr_target_link_libraries
@@ -464,12 +442,12 @@ function( avr_target_link_libraries EXECUTABLE_TARGET )
       message( FATAL_ERROR "Nothing to link to ${EXECUTABLE_TARGET}." )
    endif( NOT ARGN )
 
-   get_target_property( TARGET_LIST ${EXECUTABLE_TARGET} OUTPUT_NAME )
+   # get_target_property( TARGET_LIST ${EXECUTABLE_TARGET} OUTPUT_NAME )
+   set(TARGET_LIST ${EXECUTABLE_TARGET})
 
    foreach( TGT ${ARGN} )
       if( TARGET ${TGT} )
-         get_target_property( ARG_NAME ${TGT} OUTPUT_NAME )
-         list( APPEND TARGET_LIST ${ARG_NAME} )
+         list( APPEND TARGET_LIST ${TGT} )
       else( TARGET ${TGT} )
          list( APPEND NON_TARGET_LIST ${TGT} )
       endif( TARGET ${TGT} )

@@ -10,7 +10,7 @@ target_sources(
     ds3231.h
     i2c.c
     i2c.h
-    main.c
+    main.cpp
     plant_message_struct.h
     proto.c
     proto.h
