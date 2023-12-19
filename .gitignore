@@ -28,3 +28,12 @@ infra/prometheus/prometheus-data
 .env
 
 .vscode/settings.json
+
+# CMake build dir
+**/*build/*
+
+#clangd cache
+**/*.cache
+
+#vim session file
+session.vim

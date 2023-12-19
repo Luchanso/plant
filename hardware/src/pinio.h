@@ -37,6 +37,8 @@ A6  - ADC6
 A7  - ADC7
 */
 
+void togglePin(uint8_t port, uint8_t pin);
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

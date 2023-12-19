@@ -1,11 +1,8 @@
 #include <stdlib.h>
 
 #include "bme280.h"
-#include "i2c.h"
 #include "convert_util.h"
-
-//debug only, remove later
-#include "usart.h"
+#include "i2c.h"
 
 /*
 Refer to BME280 datasheet:
@@ -19,7 +16,8 @@ Oversampling x1 for everything, i.e.
 Pressure         [osrs_p = 0b001]
 Temperature      [osrs_t = 0b001]
 Humidity         [osrs_h = 0b001]
-Stand by time    [t_sb   = 0bXXX] - does not matter, as mode is forced, not normal
+Stand by time    [t_sb   = 0bXXX] - does not matter, as mode is forced, not
+normal
 
 This device does not use SPI to access BME280, for this reason we do not care
 about SPI settings
@@ -28,8 +26,9 @@ SPI 3 wire       [spi3w_en = 0bX]
 Combining this into configuration register map and register description in
 sections 5.3 and 5.4, we get following settings values:
 0xF2 ctrl_hum  [reserved: bits 7-3][osrs_h: bits 2-0] = 0b00000001
-0xF4 ctrl_meas [osrs_t: bits 7-5][osrs_p: bits 4-2][mode: bits 1 and 0] = 0b00100101(0x25)
-0xF5 config    [t_sb: bits 7-5][filter: bits 4-2][reserved: 1 bit][spi3w_en] = 0b00000000
+0xF4 ctrl_meas [osrs_t: bits 7-5][osrs_p: bits 4-2][mode: bits 1 and 0] =
+0b00100101(0x25) 0xF5 config    [t_sb: bits 7-5][filter: bits 4-2][reserved: 1
+bit][spi3w_en] = 0b00000000
 
 Сonsequently, it is required to write registers 0xF2 and 0xF4, register 0xF5 is
 initialized to 0 by default after power on. HOWEVER, forced mode will
@@ -38,11 +37,11 @@ every time we want to make a measurement. Moreover, for extra power savings
 this device can shut off its power entirely, therefore, all settings could be
 lost and must be re-applied before every measurement.
 */
-#define BME280_CTRL_HUM_VALUE      0x01
-#define BME280_CTRL_MEAS_VALUE     0x25
-#define BME280_CTRL_HUM_REGISTER   0xF2
-#define BME280_STATUS_REGISTER     0xF3
-#define BME280_CTRL_MEAS_REGISTER  0xF4
+#define BME280_CTRL_HUM_VALUE 0x01
+#define BME280_CTRL_MEAS_VALUE 0x25
+#define BME280_CTRL_HUM_REGISTER 0xF2
+#define BME280_STATUS_REGISTER 0xF3
+#define BME280_CTRL_MEAS_REGISTER 0xF4
 
 /*
 Status register contains two bits indicating status: 0 and 3. The rest is
@@ -54,8 +53,8 @@ reserved and isn't a valid data, mask it.
 Section 5.4.1 of the datasheet claims that reading chip ID register should
 always return 0x60.
 */
-#define BME280_CHIP_ID_REGISTER    0xD0
-#define BME280_CHIP_ID             0x60
+#define BME280_CHIP_ID_REGISTER 0xD0
+#define BME280_CHIP_ID 0x60
 
 /*
 Section 6.2 mentions the two possible I2C addresses, 0x76 if SDO pin is
@@ -79,25 +78,25 @@ the datasheet. In order to use this formulas, it is required to read a lot of
 calibration data. This structure is presented in unit 4.2.2, Table 16.
 */
 struct BME280CalibrationData {
-  int32_t  fineT;
+  int32_t fineT;
   uint16_t T1;
-  int16_t  T2;
-  int16_t  T3;
+  int16_t T2;
+  int16_t T3;
   uint16_t P1;
-  int16_t  P2;
-  int16_t  P3;
-  int16_t  P4;
-  int16_t  P5;
-  int16_t  P6;
-  int16_t  P7;
-  int16_t  P8;
-  int16_t  P9;
-  uint8_t  H1;
-  int16_t  H2;
-  uint8_t  H3;
-  int16_t  H4;
-  int16_t  H5;
-  int8_t   H6;
+  int16_t P2;
+  int16_t P3;
+  int16_t P4;
+  int16_t P5;
+  int16_t P6;
+  int16_t P7;
+  int16_t P8;
+  int16_t P9;
+  uint8_t H1;
+  int16_t H2;
+  uint8_t H3;
+  int16_t H4;
+  int16_t H5;
+  int8_t H6;
   bool initialized;
 };
 
@@ -124,8 +123,9 @@ Don't blame or ask me, I have roughly zero clue how exactly this works.
  * @return temperature in DegC, resolution is 0.01 DegC. Output value of "5123"
  * equals 51.23 DegC. d->fineT carries fine temperature for other compensation
  * formulas.
-*/
-static int32_t BME280CompensateT(const int32_t *const adc_T, BME280CalibrationData * d) {
+ */
+static int32_t BME280CompensateT(const int32_t *const adc_T,
+                                 BME280CalibrationData *d) {
   int32_t var1, var2, T;
   /*
   It looks terrifying, but bitshift operators are used as makeshift multiply or
@@ -140,10 +140,17 @@ static int32_t BME280CompensateT(const int32_t *const adc_T, BME280CalibrationDa
   However, it's still uncertain what exactly it does, please ask
   Bosch Sensortec about the details.
   */
-  var1=((((*adc_T)>>3)-((int32_t)d->T1<<1))*((int32_t)d->T2))>>11;
-  var2=((((((*adc_T)>>4)-((int32_t)d->T1))*(((*adc_T)>>4)-((int32_t)d->T1)))>>12)*((int32_t)d->T3))>>14;
-  d->fineT=var1+var2;
-  T=(d->fineT*5+128)>>8;
+  var1 = ((((*adc_T) >> 3) - ((int32_t)d->T1 << 1)) * ((int32_t)d->T2)) >> 11;
+
+  // clang-format is definitely not happy with this expression :D
+  var2 = ((((((*adc_T) >> 4) - ((int32_t)d->T1)) *
+            (((*adc_T) >> 4) - ((int32_t)d->T1))) >>
+           12) *
+          ((int32_t)d->T3)) >>
+         14;
+
+  d->fineT = var1 + var2;
+  T = (d->fineT * 5 + 128) >> 8;
   return T;
 }
 
@@ -153,23 +160,31 @@ static int32_t BME280CompensateT(const int32_t *const adc_T, BME280CalibrationDa
  * @param d struct with calibration data
  * @return pressure in Pa as unsigned 32 bit integer. Output value of "96386"
  * equals 96386 Pa = 963.86 hPa
-*/
-static uint32_t BME280CompensateP(const int32_t *const adc_P, const BME280CalibrationData *const d) { 
-  int32_t var1, var2; 
+ */
+static uint32_t BME280CompensateP(const int32_t *const adc_P,
+                                  const BME280CalibrationData *const d) {
+  int32_t var1, var2;
   uint32_t p;
-  var1=(((int32_t)d->fineT)>>1)-(int32_t)64000;
-  var2=(((var1>>2)*(var1>>2))>>11)*((int32_t)d->P6);
-  var2=var2+((var1*((int32_t)d->P5))<<1);
-  var2=(var2>>2)+(((int32_t)d->P4)<<16);
-  var1=(((d->P3*(((var1>>2)*(var1>>2))>>13))>>3)+((((int32_t)d->P2)*var1)>>1))>>18;
-  var1=((((32768+var1))*((int32_t)d->P1))>>15);
-  if(var1==0){return 0;} // avoid exception caused by division by zero
-  p=(((uint32_t)(((int32_t)1048576)-(*adc_P))-(var2>>12)))*3125;
-  if(p<0x80000000){p=(p<<1)/((uint32_t)var1);}
-  else{p=(p/(uint32_t)var1)*2;}
-  var1=(((int32_t)d->P9)*((int32_t)(((p>>3)*(p>>3))>>13)))>>12;
-  var2=(((int32_t)(p>>2))*((int32_t)d->P8))>>13;
-  p=(uint32_t)((int32_t)p+((var1+var2+d->P7)>>4));
+  var1 = (((int32_t)d->fineT) >> 1) - (int32_t)64000;
+  var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * ((int32_t)d->P6);
+  var2 = var2 + ((var1 * ((int32_t)d->P5)) << 1);
+  var2 = (var2 >> 2) + (((int32_t)d->P4) << 16);
+  var1 = (((d->P3 * (((var1 >> 2) * (var1 >> 2)) >> 13)) >> 3) +
+          ((((int32_t)d->P2) * var1) >> 1)) >>
+         18;
+  var1 = ((((32768 + var1)) * ((int32_t)d->P1)) >> 15);
+  if (var1 == 0) {
+    return 0;
+  } // avoid exception caused by division by zero
+  p = (((uint32_t)(((int32_t)1048576) - (*adc_P)) - (var2 >> 12))) * 3125;
+  if (p < 0x80000000) {
+    p = (p << 1) / ((uint32_t)var1);
+  } else {
+    p = (p / (uint32_t)var1) * 2;
+  }
+  var1 = (((int32_t)d->P9) * ((int32_t)(((p >> 3) * (p >> 3)) >> 13))) >> 12;
+  var2 = (((int32_t)(p >> 2)) * ((int32_t)d->P8)) >> 13;
+  p = (uint32_t)((int32_t)p + ((var1 + var2 + d->P7) >> 4));
   return p;
 }
 
@@ -180,24 +195,39 @@ static uint32_t BME280CompensateP(const int32_t *const adc_P, const BME280Calibr
  * @return humidity in %RH as unsigned 32 bit integer in Q22.10 format
  * (22 integer and 10 fractional bits).
  * Output value of "47445" represents 47445/1024 = 46.333 %RH
-*/
-static uint32_t BME280CompensateH(const int32_t *const adc_H, const BME280CalibrationData *const d) {
+ */
+static uint32_t BME280CompensateH(const int32_t *const adc_H,
+                                  const BME280CalibrationData *const d) {
   int32_t v_x1_u32r;
-  v_x1_u32r=(d->fineT-((int32_t)76800));
-  v_x1_u32r=((((((*adc_H)<<14)-(((int32_t)d->H4)<<20)-(((int32_t)d->H5)*v_x1_u32r))+((int32_t)16384))>>15)*(((((((v_x1_u32r*((int32_t)d->H6))>>10)*(((v_x1_u32r*((int32_t)d->H3))>>11)+((int32_t)32768)))>>10)+((int32_t)2097152))*((int32_t)d->H2)+8192)>>14));
-  v_x1_u32r=(v_x1_u32r-(((((v_x1_u32r>>15)*(v_x1_u32r>>15))>>7)*((int32_t)d->H1))>>4));
-  v_x1_u32r=(v_x1_u32r<0?0:v_x1_u32r);
-  v_x1_u32r=(v_x1_u32r>419430400?419430400:v_x1_u32r);
-  return(uint32_t)(v_x1_u32r>>12);
+  v_x1_u32r = (d->fineT - ((int32_t)76800));
+  v_x1_u32r =
+      ((((((*adc_H) << 14) - (((int32_t)d->H4) << 20) -
+          (((int32_t)d->H5) * v_x1_u32r)) +
+         ((int32_t)16384)) >>
+        15) *
+       (((((((v_x1_u32r * ((int32_t)d->H6)) >> 10) *
+            (((v_x1_u32r * ((int32_t)d->H3)) >> 11) + ((int32_t)32768))) >>
+           10) +
+          ((int32_t)2097152)) *
+             ((int32_t)d->H2) +
+         8192) >>
+        14));
+  v_x1_u32r =
+      (v_x1_u32r -
+       (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * ((int32_t)d->H1)) >>
+        4));
+  v_x1_u32r = (v_x1_u32r < 0 ? 0 : v_x1_u32r);
+  v_x1_u32r = (v_x1_u32r > 419430400 ? 419430400 : v_x1_u32r);
+  return (uint32_t)(v_x1_u32r >> 12);
 }
 
 BME280Data *createBME280() {
   BME280Data *data = calloc(1, sizeof(BME280Data));
-  if(!data)
+  if (!data)
     return 0;
 
   data->d = calloc(1, sizeof(BME280CalibrationData));
-  if(!data->d) {
+  if (!data->d) {
     free(data);
     return 0;
   }
@@ -212,7 +242,7 @@ void destroyBME280(BME280Data *data) {
 
 bool BME280IsAvailable() {
   uint8_t chipID = 0;
-  if(!pmI2CRead(BME280_I2C_ADDRESS, BME280_CHIP_ID_REGISTER, 1, &chipID))
+  if (!pmI2CRead(BME280_I2C_ADDRESS, BME280_CHIP_ID_REGISTER, 1, &chipID))
     return false;
 
   return chipID == BME280_CHIP_ID;
@@ -220,11 +250,11 @@ bool BME280IsAvailable() {
 
 bool BME280StartMeasurement() {
   uint8_t value = BME280_CTRL_HUM_VALUE;
-  if(!pmI2CWrite(BME280_I2C_ADDRESS, BME280_CTRL_HUM_REGISTER, 1, &value))
+  if (!pmI2CWrite(BME280_I2C_ADDRESS, BME280_CTRL_HUM_REGISTER, 1, &value))
     return false;
 
   value = BME280_CTRL_MEAS_VALUE;
-  if(!pmI2CWrite(BME280_I2C_ADDRESS, BME280_CTRL_MEAS_REGISTER, 1, &value))
+  if (!pmI2CWrite(BME280_I2C_ADDRESS, BME280_CTRL_MEAS_REGISTER, 1, &value))
     return false;
 
   return true;
@@ -232,7 +262,7 @@ bool BME280StartMeasurement() {
 
 bool BME280IsIdle() {
   uint8_t status = 0xFF;
-  if(!pmI2CRead(BME280_I2C_ADDRESS, BME280_STATUS_REGISTER, 1, &status))
+  if (!pmI2CRead(BME280_I2C_ADDRESS, BME280_STATUS_REGISTER, 1, &status))
     return false;
 
   return !(status & BME280_STATUS_REGISTER_MASK);
@@ -240,10 +270,8 @@ bool BME280IsIdle() {
 
 bool BME280GetCalibrationData(BME280CalibrationData *d) {
   uint8_t dataBuffer[BME280_T_P_CALIBRATION_REGISTERS_SIZE];
-  if(!pmI2CRead(BME280_I2C_ADDRESS,
-                BME280_FIRST_T_P_CALIBRATION_REGISTER, 
-                BME280_T_P_CALIBRATION_REGISTERS_SIZE, 
-                dataBuffer))
+  if (!pmI2CRead(BME280_I2C_ADDRESS, BME280_FIRST_T_P_CALIBRATION_REGISTER,
+                 BME280_T_P_CALIBRATION_REGISTERS_SIZE, dataBuffer))
     return false;
 
   uint8_t *iterator = dataBuffer;
@@ -262,20 +290,15 @@ bool BME280GetCalibrationData(BME280CalibrationData *d) {
   getInt16FromLEBuffer(&iterator, &d->P8);
   getInt16FromLEBuffer(&iterator, &d->P9);
 
-  if(!pmI2CRead(BME280_I2C_ADDRESS,
-                BME280_H1_CALIBRATION_REGISTER, 
-                1,
-                dataBuffer))
+  if (!pmI2CRead(BME280_I2C_ADDRESS, BME280_H1_CALIBRATION_REGISTER, 1,
+                 dataBuffer))
     return false;
 
   iterator = dataBuffer;
   getInt8FromBuffer(&iterator, &d->H1);
 
-
-  if(!pmI2CRead(BME280_I2C_ADDRESS,
-                BME280_FIRST_H2_H6_CALIBRATION_REGISTER, 
-                BME280_H2_H6_CALIBRATION_REGISTERS_SIZE, 
-                dataBuffer))
+  if (!pmI2CRead(BME280_I2C_ADDRESS, BME280_FIRST_H2_H6_CALIBRATION_REGISTER,
+                 BME280_H2_H6_CALIBRATION_REGISTERS_SIZE, dataBuffer))
     return false;
 
   iterator = dataBuffer;
@@ -284,25 +307,23 @@ bool BME280GetCalibrationData(BME280CalibrationData *d) {
 
   // Special case: register 0xE5 contains two halves of different values.
   d->H4 = *(iterator++) << 4;
-  d->H4 |= (*(iterator) & 0xF);
+  d->H4 |= (*(iterator)&0xF);
 
   d->H5 = (*(iterator + 1)) << 4;
   d->H5 |= (*(iterator)) >> 4;
-  iterator += 2;  
+  iterator += 2;
 
   getInt8FromBuffer(&iterator, &d->H6);
 
   d->initialized = true;
-  
+
   return true;
 }
 
-bool BME280GetData(BME280Data *data){
+bool BME280GetData(BME280Data *data) {
   uint8_t dataBuffer[BME280_DATA_REGISTERS];
-  if(!pmI2CRead(BME280_I2C_ADDRESS,
-                BME280_FIRST_DATA_REGISTER, 
-                BME280_DATA_REGISTERS, 
-                dataBuffer))
+  if (!pmI2CRead(BME280_I2C_ADDRESS, BME280_FIRST_DATA_REGISTER,
+                 BME280_DATA_REGISTERS, dataBuffer))
     return false;
 
   int32_t pressure = 0;
@@ -321,21 +342,21 @@ bool BME280GetData(BME280Data *data){
   int32_t temperature = 0;
   temperature = dataBuffer[3]; // most significant byte of pressure
   temperature <<= 8;
-  temperature |= dataBuffer[4];// somewhat significant byte of pressure
-  temperature <<= 8;     
-  temperature |= dataBuffer[5];// least significant byte of pressure
+  temperature |= dataBuffer[4]; // somewhat significant byte of pressure
+  temperature <<= 8;
+  temperature |= dataBuffer[5]; // least significant byte of pressure
   temperature >>= 4;
 
   int32_t humidity = 0;
   humidity = dataBuffer[6]; // most significannt byte of humidity
   humidity <<= 8;
-  humidity |= dataBuffer[7];// least significant byte of humidity
+  humidity |= dataBuffer[7]; // least significant byte of humidity
 
-  //Raw values we're just obtained require some post-processing.
-  
-  //Calibration values are constant, we only need to read them once.
-  if(!data->d->initialized)
-    if(!BME280GetCalibrationData(data->d))
+  // Raw values we're just obtained require some post-processing.
+
+  // Calibration values are constant, we only need to read them once.
+  if (!data->d->initialized)
+    if (!BME280GetCalibrationData(data->d))
       return false;
 
   data->temperature = BME280CompensateT(&temperature, data->d);

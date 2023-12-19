@@ -1,6 +1,8 @@
 #include <avr/io.h>
 #include <stdlib.h>
 
+#include <etl/circular_buffer.h>
+
 #include "bme280.h"
 #include "ds3231.h"
 #include "i2c.h"
@@ -57,6 +59,7 @@ void setup() {
 
   // initialize digital pin LED_BUILTIN as an output.
   // pinMode(LED_BUILTIN, OUTPUT);
+  LED_DDR |= _BV(LED_PIN);
 }
 
 void handleIncomingMessage(const plantMessage *pm) {
@@ -95,6 +98,9 @@ void handleIncomingMessage(const plantMessage *pm) {
 // 3a 03 00 e1 -- time
 int main() {
   setup();
+  etl::circular_buffer<uint8_t, 8> test;
+  // test.push(1);
+  // test.push(2);
 
   while (1) {
 

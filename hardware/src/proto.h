@@ -122,7 +122,7 @@ void pmDestroy(plantMessage *msg);
  * @return true on success
  */
 bool pmSerialize(const plantMessage *input, uint8_t *buffer,
-                  uint8_t *bufferSize);
+                 uint8_t *bufferSize);
 
 /**
  * Attempt to parse a message
@@ -135,7 +135,7 @@ bool pmSerialize(const plantMessage *input, uint8_t *buffer,
  * untouched.
  */
 pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
-                       plantMessage *result);
+                      plantMessage *result);
 
 #if defined(__cplusplus)
 }
