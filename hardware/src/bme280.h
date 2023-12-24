@@ -6,65 +6,57 @@ BME280 Combined humidity and pressure sensor driver, uses PlantMonitor I2C
 abstraction layer.
 */
 
+#include <etl/memory.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#include "i2c.h"
 
-// The secret sauce. Contains boring values for processing raw measurements.
-typedef struct BME280CalibrationData BME280CalibrationData;
+class bme_280 : protected i2c_peripheral {
+  // The secret sauce. Contains boring values for processing raw measurements.
+  struct calibration_data;
+  etl::unique_ptr<calibration_data> m_calibration_data;
+  bool get_calibration_data();
 
-// The representation of a BME280.
-typedef struct {
-uint32_t pressure;
-int32_t  temperature;
-uint32_t humidity;
-BME280CalibrationData * d;
-} BME280Data;
+public:
+  struct measurement_data {
+    uint32_t pressure;
+    int32_t temperature;
+    uint32_t humidity;
+  };
 
-/**
- * Initialize BME280 instance.
- * @return properly initialized BME280Data or nullptr on failure.
- */
-BME280Data *createBME280();
+  bme_280(i2c_bus_controller *);
+  ~bme_280() = default;
 
-/**
- * Deinitialize BME280 instance.
- * @param data instance to destroy
- */
-void destroyBME280(BME280Data *data);
+  /**
+   * Check connectivity by querying Chip ID register and validating it.
+   * @return true if BME280 is available for requests over I2C bus.
+   */
+  bool available();
 
-/**
- * Check connectivity by querying Chip ID register and validating it.
- * @return true if BME280 is available for requests over I2C bus.
- */
-bool BME280IsAvailable();
+  /**
+   * Send command to start measurement. Measurement might take some amount of
+   * time. To ensure data relevancy, check that the device is done measuring
+   * using @ref bme_280::idle()
+   * @return true if command successfuly sent
+   */
+  bool start_measurement();
 
-/**
- * Send command to start measurement. Measurement might take some amount of
- * time. To ensure data relevancy, check that the device is done measuring
- * using @ref pmBME280IsIdle()
- */
-bool BME280StartMeasurement();
+  /**
+   * While BME280 is performing measurement or moving data to output registers,
+   * it will consider itself busy. This function will check that BME280 is not
+   * doing any of that.
+   * @return true if BME280 is in idle state.
+   */
+  bool idle();
 
-/**
- * While BME280 is performing measurement, it will consider itself busy. This
- * function will check that BME280 is not performing any measurement.
- * @return true if BME280 is in idle state.
- */
-bool BME280IsIdle();
+  /**
+   * Get measurement result from the BME280. NOTE: this is fairly expensive
+   * operation in terms of processing time, and, giving the fact that BME280 is
+   * configured to run in the most power efficient mode, there is no need to run
+   * this function more than once per minute.
+   * @param calibration special data type storing device calibration data.
+   */
+  bool get_data(bme_280::measurement_data &data);
+};
 
-/**
- * Get measurement result from the BME280. NOTE: this is fairly expensive
- * operation in terms of processing time, and, giving the fact that BME280 is
- * configured to run in the most power efficient mode, there is no need to run
- * this function more than once per minute.
- * @param calibration special data type storing device calibration data.
- */
-bool BME280GetData(BME280Data *data);
-
-#if defined(__cplusplus)
-}
-#endif

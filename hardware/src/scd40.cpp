@@ -6,7 +6,7 @@ Refer to SCD4x Datasheet:
 https://sensirion.com/media/documents/48C4B7FB/6426E14D/CD_DS_SCD40_SCD41_Datasheet_D1_052023.pdf
 */
 
-#define SCD40_I2C_ADDRESS 0x62
+#define SCD40_I2C_ADDRESS (uint8_t)0x62
 #define SCD40_START_MEASUREMENT (uint16_t)(0x21b1)
 #define SCD40_GET_MEASUREMENT (uint16_t)(0xEC05)
 #define SCD40_STOP_MEASUREMENT (uint16_t)(0x3F86)
