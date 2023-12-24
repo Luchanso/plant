@@ -5,38 +5,35 @@
 
 #include <stdbool.h>
 
+#include "i2c.h"
 #include "time_struct.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+class ds_3231 : protected i2c_peripheral {
+public:
+  ds_3231(i2c_bus_controller *);
 
-/**
- * Check connectivity by querying Aging Offset register and waiting for any
- * valid response over I2C bus.
- * @return true if DS3231 is available for requests over I2C bus.
- */
-bool DS3231IsAvailable();
+  /**
+   * Check connectivity by querying Aging Offset Register and waiting for
+   * any valid response over I2C bus.
+   * @return true if DS3231 is available for requests over I2C bus.
+   */
+  bool available();
 
-/**
- * Read time from DS3231.
- * @param[out] t time structure to write result to.
- * @return true, if read is successful.
- */
-bool DS3231ReadTime(time *t);
+  /**
+   * Read time from DS3231.
+   * @param[out] t time structure to write result to.
+   * @return true, if read is successful.
+   */
+  bool get_time(time &t);
 
-/**
- * Set time to DS3231.
- * @param[in] t time to set
- * @return true on success.
- */
-bool DS3231SetTime(const time *const t);
+  /**
+   * Set time to DS3231.
+   * @param[in] t time to set
+   * @return true on success.
+   */
+  bool set_time(const time &t);
 
-/**
- * Read the entire memory of DS3231.
- * @param 
-bool pmDS3231ReadStatus()
-*/
-#if defined(__cplusplus)
-}
-#endif
+  /*
+  bool get_status();
+  */
+};

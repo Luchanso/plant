@@ -1,10 +1,10 @@
 #include <avr/interrupt.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "usart.h"
 #include "proto.h"
+#include "usart.h"
 
 #define __PLANT_MESSAGE_STRUCT
 #include "plant_message_struct.h"
@@ -63,7 +63,7 @@ void pmUSARTInit() {
 
 void pmUSARTSend(const plantMessage *message) {
   bytesToSend = USART_BUFFER_SIZE;
-  pmSerialize(message, (uint8_t*)txBuffer, (uint8_t*)&bytesToSend);
+  pmSerialize(message, (uint8_t *)txBuffer, (uint8_t *)&bytesToSend);
 
   // Send the first byte straight away. The rest of them will be sent in TX ISR
   UDR0 = txBuffer[0];
@@ -74,15 +74,13 @@ uint8_t pmUSARTCopyReceivedData(uint8_t **buffer) {
   if (!bytesReceived)
     return 0;
 
-  *buffer = malloc(bytesReceived);
-  memcpy(*buffer, (const uint8_t*)rxBuffer, bytesReceived);
+  *buffer = static_cast<uint8_t *>(malloc(bytesReceived));
+  memcpy(*buffer, (const uint8_t *)rxBuffer, bytesReceived);
 
   return bytesReceived;
 }
 
-void pmUSARTClearRxBuffer() {
-  bytesReceived = 0;
-}
+void pmUSARTClearRxBuffer() { bytesReceived = 0; }
 
 // Succesfully received one frame - stash it, or, if buffer is full, dispose it.
 ISR(USART_RX_vect) {
@@ -109,9 +107,10 @@ ISR(USART_TX_vect) {
 void pmUSARTSendDebugText(const char *message) {
   UCSR0B &= ~((1 << RXCIE0) | (1 << TXCIE0));
 
-  while(*message) {
+  while (*message) {
     // Wait for USART Data Register 0 to become empty before writing anything.
-    while( !(UCSR0A & (1 << UDRE0)) );
+    while (!(UCSR0A & (1 << UDRE0)))
+      ;
     UDR0 = *message;
     ++message;
   }
@@ -121,7 +120,7 @@ void pmUSARTSendDebugText(const char *message) {
 
 void pmUSARTSendDebugNumber(int32_t number) {
   // int32 will have at most 12 digits, including '-' and '\0'
-  char *buffer = malloc(12);
+  char *buffer = static_cast<char *>(malloc(12));
   snprintf(buffer, 12, "%ld", number);
   pmUSARTSendDebugText(buffer);
   free(buffer);

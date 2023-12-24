@@ -1,8 +1,6 @@
-#include <avr/io.h>
 #include <stdlib.h>
 
-#include <etl/circular_buffer.h>
-
+#include "avr-gpio.h"
 #include "bme280.h"
 #include "ds3231.h"
 #include "i2c.h"
@@ -10,9 +8,8 @@
 #include "timers.h"
 #include "usart.h"
 
-#define LED_PORT PORTB
+#define LED_PORT B
 #define LED_PIN 5
-#define LED_DDR DDRB
 
 plantMessage *inPm = NULL;
 plantMessage *outPm = NULL;
@@ -21,11 +18,13 @@ uint8_t lastResult = 0;
 volatile bool LEDState = true;
 volatile bool debug = false;
 
+i2c_bus_controller i2c;
+bme_280 bme280(&i2c);
+ds_3231 ds3231(&i2c);
+
 time systemTime = {};
 const char *weekdays[] = {"Monday", "Tuesday",  "Wednesday", "Thursday",
                           "Friday", "Saturday", "Sunday"};
-
-BME280Data *BME280 = NULL;
 
 // Note: variables modified by Interrupt callbacks must have volatile keyword.
 volatile bool hasData = false;
@@ -34,13 +33,7 @@ volatile bool hasData = false;
 void serialLineIdle() { hasData = true; }
 
 void oneSecond() {
-  //  digitalWrite(LED_BUILTIN, LEDState);
-
-  if (LEDState)
-    LED_PORT |= _BV(LED_PIN);
-  else
-    LED_PORT &= ~_BV(LED_PIN);
-
+  set_pin(LED_PORT, LED_PIN, LEDState);
   LEDState = !LEDState;
 
   debug = true;
@@ -50,16 +43,12 @@ void setup() {
   pmSetupTimersInterrupts(&oneSecond, &serialLineIdle);
   pmStartOneSecondTimer();
   pmUSARTInit();
-  pmI2CInit();
-
-  BME280 = createBME280();
 
   inPm = pmCreate();
   outPm = pmCreate();
 
   // initialize digital pin LED_BUILTIN as an output.
-  // pinMode(LED_BUILTIN, OUTPUT);
-  LED_DDR |= _BV(LED_PIN);
+  set_output_pin(LED_PORT, LED_PIN);
 }
 
 void handleIncomingMessage(const plantMessage *pm) {
@@ -72,7 +61,7 @@ void handleIncomingMessage(const plantMessage *pm) {
     break;
 
   case pmcGetRTCTime:
-    if (DS3231ReadTime(&systemTime))
+    if (ds3231.get_time(systemTime))
       pmFillTime(&systemTime, outPm);
     else
       pmFillHardwareError(outPm);
@@ -80,7 +69,7 @@ void handleIncomingMessage(const plantMessage *pm) {
 
   case pmcSetRTCTime:
     if (pmGetTime(inPm, &systemTime)) {
-      if (DS3231SetTime(&systemTime))
+      if (ds3231.set_time(systemTime))
         pmFillTime(&systemTime, outPm);
       else
         pmFillHardwareError(outPm);
@@ -98,18 +87,15 @@ void handleIncomingMessage(const plantMessage *pm) {
 // 3a 03 00 e1 -- time
 int main() {
   setup();
-  etl::circular_buffer<uint8_t, 8> test;
-  // test.push(1);
-  // test.push(2);
 
   while (1) {
 
     if (debug) {
       debug = false;
 
-      if (DS3231IsAvailable()) {
+      if (ds3231.available()) {
         pmUSARTSendDebugText("DS3231 is available\r\n");
-        if (DS3231ReadTime(&systemTime)) {
+        if (ds3231.get_time(systemTime)) {
           pmUSARTSendDebugNumber(systemTime.year);
           pmUSARTSendDebugText(".");
           pmUSARTSendDebugNumber(systemTime.month);
@@ -132,27 +118,29 @@ int main() {
         pmUSARTSendDebugText("DS3231 is unavailable\r\n");
       }
 
-      if (BME280IsAvailable()) {
+      if (bme280.available()) {
         pmUSARTSendDebugText("BME280 is available\r\n");
-        if (BME280IsIdle()) {
+        if (bme280.idle()) {
           pmUSARTSendDebugText("BME280 is idle\r\n");
 
-          BME280GetData(BME280);
-          if (BME280->pressure) {
+          bme_280::measurement_data data;
+
+          if (bme280.get_data(data)) {
             pmUSARTSendDebugText("Temperature = ");
-            pmUSARTSendDebugNumber(BME280->temperature);
+            pmUSARTSendDebugNumber(data.temperature);
             pmUSARTSendDebugText(" / 100 C\r\n");
 
             pmUSARTSendDebugText("Pressure = ");
-            pmUSARTSendDebugNumber(BME280->pressure);
+            pmUSARTSendDebugNumber(data.pressure);
             pmUSARTSendDebugText(" Pa\r\n");
 
             pmUSARTSendDebugText("Humidity = ");
-            pmUSARTSendDebugNumber(BME280->humidity / 1024);
+            pmUSARTSendDebugNumber(data.humidity / 1024);
             pmUSARTSendDebugText(" %\r\n\r\n");
-          }
+          } else
+            pmUSARTSendDebugText("Get data failed!\r\n");
 
-          if (BME280StartMeasurement())
+          if (bme280.start_measurement())
             pmUSARTSendDebugText("BME280 has started measurement\r\n");
 
         } else {

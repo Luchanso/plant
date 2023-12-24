@@ -41,15 +41,18 @@ static void adjustPayloadSize(plantMessage *msg, uint8_t requiredPayloadSize) {
       free(msg->payload);
       msg->payload = NULL;
     } else if (msg->payloadSize != requiredPayloadSize) {
-      msg->payload = realloc(msg->payload, requiredPayloadSize);
+      msg->payload =
+          static_cast<uint8_t *>(realloc(msg->payload, requiredPayloadSize));
     }
   } else if (requiredPayloadSize) {
-    msg->payload = malloc(requiredPayloadSize);
+    msg->payload = static_cast<uint8_t *>(malloc(requiredPayloadSize));
   }
   msg->payloadSize = requiredPayloadSize;
 }
 
-plantMessage *pmCreate() { return calloc(1, sizeof(plantMessage)); }
+plantMessage *pmCreate() {
+  return static_cast<plantMessage *>(calloc(1, sizeof(plantMessage)));
+}
 
 void pmDestroy(plantMessage *msg) {
   if (!msg)
@@ -160,7 +163,7 @@ pmParseResult pmParse(uint8_t *buffer, uint8_t bufferSize,
   if (payloadLength)
     memcpy(result->payload, iterator + PMC_MSG_PAYLOAD_OFFSET, payloadLength);
 
-  result->code = iterator[1];
+  result->code = static_cast<plantMessageCode>(iterator[1]);
   memset(buffer, 0, msgSize);
 
   return prOk;
