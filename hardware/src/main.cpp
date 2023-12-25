@@ -5,6 +5,7 @@
 #include "ds3231.h"
 #include "i2c.h"
 #include "proto.h"
+#include "scd40.h"
 #include "timers.h"
 #include "usart.h"
 
@@ -21,6 +22,7 @@ volatile bool debug = false;
 i2c_bus_controller i2c;
 bme_280 bme280(&i2c);
 ds_3231 ds3231(&i2c);
+scd_40 scd40(&i2c);
 
 time systemTime = {};
 const char *weekdays[] = {"Monday", "Tuesday",  "Wednesday", "Thursday",
@@ -46,6 +48,11 @@ void setup() {
 
   inPm = pmCreate();
   outPm = pmCreate();
+
+  if (scd40.start_low_power_measurement())
+    pmUSARTSendDebugText("Started measurement");
+  else
+    pmUSARTSendDebugText("Failed to start measurement");
 
   // initialize digital pin LED_BUILTIN as an output.
   set_output_pin(LED_PORT, LED_PIN);
@@ -93,61 +100,80 @@ int main() {
     if (debug) {
       debug = false;
 
-      if (ds3231.available()) {
-        pmUSARTSendDebugText("DS3231 is available\r\n");
-        if (ds3231.get_time(systemTime)) {
-          pmUSARTSendDebugNumber(systemTime.year);
-          pmUSARTSendDebugText(".");
-          pmUSARTSendDebugNumber(systemTime.month);
-          pmUSARTSendDebugText(".");
-          pmUSARTSendDebugNumber(systemTime.dayOfMonth);
-          pmUSARTSendDebugText(" ");
+      // if (ds3231.available()) {
+      //   pmUSARTSendDebugText("DS3231 is available\r\n");
+      //   if (ds3231.get_time(systemTime)) {
+      //     pmUSARTSendDebugNumber(systemTime.year);
+      //     pmUSARTSendDebugText(".");
+      //     pmUSARTSendDebugNumber(systemTime.month);
+      //     pmUSARTSendDebugText(".");
+      //     pmUSARTSendDebugNumber(systemTime.dayOfMonth);
+      //     pmUSARTSendDebugText(" ");
 
-          pmUSARTSendDebugNumber(systemTime.hours);
-          pmUSARTSendDebugText(":");
-          pmUSARTSendDebugNumber(systemTime.minutes);
-          pmUSARTSendDebugText(":");
-          pmUSARTSendDebugNumber(systemTime.seconds);
-          pmUSARTSendDebugText(", ");
-          pmUSARTSendDebugText(weekdays[systemTime.dayOfWeek - 1]);
-          pmUSARTSendDebugText("\r\n\r\n");
+      //    pmUSARTSendDebugNumber(systemTime.hours);
+      //    pmUSARTSendDebugText(":");
+      //    pmUSARTSendDebugNumber(systemTime.minutes);
+      //    pmUSARTSendDebugText(":");
+      //    pmUSARTSendDebugNumber(systemTime.seconds);
+      //    pmUSARTSendDebugText(", ");
+      //    pmUSARTSendDebugText(weekdays[systemTime.dayOfWeek - 1]);
+      //    pmUSARTSendDebugText("\r\n\r\n");
+      //  } else {
+      //    pmUSARTSendDebugText("DS3231 failed to read time\r\n");
+      //  }
+      //} else {
+      //  pmUSARTSendDebugText("DS3231 is unavailable\r\n");
+      //}
+
+      // if (bme280.available()) {
+      //   pmUSARTSendDebugText("BME280 is available\r\n");
+      //   if (bme280.idle()) {
+      //     pmUSARTSendDebugText("BME280 is idle\r\n");
+
+      //    bme_280::measurement_data data;
+
+      //    if (bme280.get_data(data)) {
+      //      pmUSARTSendDebugText("Temperature = ");
+      //      pmUSARTSendDebugNumber(data.temperature);
+      //      pmUSARTSendDebugText(" / 100 C\r\n");
+
+      //      pmUSARTSendDebugText("Pressure = ");
+      //      pmUSARTSendDebugNumber(data.pressure);
+      //      pmUSARTSendDebugText(" Pa\r\n");
+
+      //      pmUSARTSendDebugText("Humidity = ");
+      //      pmUSARTSendDebugNumber(data.humidity / 1024);
+      //      pmUSARTSendDebugText(" %\r\n\r\n");
+      //    } else
+      //      pmUSARTSendDebugText("Get data failed!\r\n");
+
+      //    if (bme280.start_measurement())
+      //      pmUSARTSendDebugText("BME280 has started measurement\r\n");
+
+      //  } else {
+      //    pmUSARTSendDebugText("BME280 is measuring...\r\n");
+      //  }
+      //} else {
+      //  pmUSARTSendDebugText("BME280 is unavailable\r\n");
+      //}
+
+      if (scd40.measurement_ready()) {
+        pmUSARTSendDebugText("SCD40 has data available\r\n");
+        scd_40::measurement_data data;
+        if (scd40.get_data(data)) {
+          pmUSARTSendDebugText("CO2 ppm = ");
+          pmUSARTSendDebugNumber(data.co2ppm);
+          pmUSARTSendDebugText("\r\n Temperature = ");
+          pmUSARTSendDebugNumber(data.temperature);
+          pmUSARTSendDebugText("\r\n Humidity = ");
+          pmUSARTSendDebugNumber(data.humidity);
+          pmUSARTSendDebugText("\r\n");
         } else {
-          pmUSARTSendDebugText("DS3231 failed to read time\r\n");
+          pmUSARTSendDebugText("Failed to get data\r\n");
         }
+
       } else {
-        pmUSARTSendDebugText("DS3231 is unavailable\r\n");
-      }
-
-      if (bme280.available()) {
-        pmUSARTSendDebugText("BME280 is available\r\n");
-        if (bme280.idle()) {
-          pmUSARTSendDebugText("BME280 is idle\r\n");
-
-          bme_280::measurement_data data;
-
-          if (bme280.get_data(data)) {
-            pmUSARTSendDebugText("Temperature = ");
-            pmUSARTSendDebugNumber(data.temperature);
-            pmUSARTSendDebugText(" / 100 C\r\n");
-
-            pmUSARTSendDebugText("Pressure = ");
-            pmUSARTSendDebugNumber(data.pressure);
-            pmUSARTSendDebugText(" Pa\r\n");
-
-            pmUSARTSendDebugText("Humidity = ");
-            pmUSARTSendDebugNumber(data.humidity / 1024);
-            pmUSARTSendDebugText(" %\r\n\r\n");
-          } else
-            pmUSARTSendDebugText("Get data failed!\r\n");
-
-          if (bme280.start_measurement())
-            pmUSARTSendDebugText("BME280 has started measurement\r\n");
-
-        } else {
-          pmUSARTSendDebugText("BME280 is measuring...\r\n");
-        }
-      } else {
-        pmUSARTSendDebugText("BME280 is unavailable\r\n");
+        pmUSARTSendDebugText("SCD40 has no data available\r\n");
       }
     }
 

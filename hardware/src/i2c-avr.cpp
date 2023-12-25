@@ -1,7 +1,9 @@
+#include <util/delay.h>
 #include <util/twi.h>
 
 #include "avr-new.h"
 #include "i2c.h"
+#include "usart.h"
 
 /*
 Refer to Atmega328p datasheet, section 21:
@@ -136,37 +138,50 @@ bool i2c_bus_controller::read(const uint8_t address,
                               const etl::ivector<uint8_t> &reg_addr,
                               etl::ivector<uint8_t> &result) {
   uint8_t length = result.size();
-  if (!length)
+  if (reg_addr.empty())
     return false;
 
   // Send START condition
   if (!m_impl->send_start())
     return false;
 
-  // Set I2C bus address
+  // pmUSARTSendDebugText("start ok\r\n");
+  //  Set I2C bus address
   if (!m_impl->set_address(address, true))
     return false;
 
-  // Set the first register to read from
-  for (uint8_t i = 0; i < reg_addr.size(); ++i)
+  // pmUSARTSendDebugText("address ok\r\n");
+  // pmUSARTSendDebugText("reg");
+  //  Set the first register to read from
+  for (uint8_t i = 0; i < reg_addr.size(); ++i) {
+    // pmUSARTSendDebugText(" ");
+    // pmUSARTSendDebugNumber(reg_addr[i]);
     if (!m_impl->write_byte(reg_addr[i]))
       return false;
+  }
+  // pmUSARTSendDebugText("ok\r\n");
+  //_delay_ms(1);
 
   // Send repeated START
   if (!m_impl->send_start())
     return false;
 
+  // pmUSARTSendDebugText("repeated start ok\r\n");
   if (!m_impl->set_address(address, false))
     return false;
 
-  // Read multiple data bytes and send ack after each one
+  // pmUSARTSendDebugText("repeated address ok\r\n");
+  //  Read multiple data bytes and send ack after each one
   for (uint8_t i = 0; i < length - 1; ++i)
     if (!m_impl->read_byte(result[i], true))
       return false;
 
-  // Read single final data byte and do not send ack
+  // pmUSARTSendDebugText("read ok\r\n");
+  //  Read single final data byte and do not send ack
   if (!m_impl->read_byte(result[length - 1], false))
     return false;
+
+  // pmUSARTSendDebugText("final read ok\r\n");
 
   // Send STOP condition
   m_impl->send_stop();
@@ -178,7 +193,7 @@ bool i2c_bus_controller::write(const uint8_t address,
                                const etl::ivector<uint8_t> &reg_addr,
                                const etl::ivector<uint8_t> &data) {
   uint8_t length = data.size();
-  if (!length || !reg_addr.size())
+  if (reg_addr.empty())
     return false;
 
   // Send START condition

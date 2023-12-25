@@ -5,6 +5,8 @@
 #include "convert_util.h"
 #include "i2c.h"
 
+#include "usart.h"
+
 /*
 Refer to BME280 datasheet:
 https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
@@ -259,39 +261,40 @@ bool bme_280::get_calibration_data() {
   etl::vector<uint8_t, BME280_T_P_CALIBRATION_REGISTERS_SIZE> data_buffer(
       BME280_T_P_CALIBRATION_REGISTERS_SIZE);
 
+  pmUSARTSendDebugText("querying data 1...");
   if (!read(BME280_FIRST_T_P_CALIBRATION_REGISTER, data_buffer))
     return false;
 
   uint8_t *iterator = data_buffer.begin();
 
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->T1);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->T2);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->T3);
+  get_le(m_calibration_data->T1, iterator);
+  get_le(m_calibration_data->T2, iterator);
+  get_le(m_calibration_data->T3, iterator);
 
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P1);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P2);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P3);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P4);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P5);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P6);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P7);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P8);
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->P9);
+  get_le(m_calibration_data->P1, iterator);
+  get_le(m_calibration_data->P2, iterator);
+  get_le(m_calibration_data->P3, iterator);
+  get_le(m_calibration_data->P4, iterator);
+  get_le(m_calibration_data->P5, iterator);
+  get_le(m_calibration_data->P6, iterator);
+  get_le(m_calibration_data->P7, iterator);
+  get_le(m_calibration_data->P8, iterator);
+  get_le(m_calibration_data->P9, iterator);
 
   data_buffer.resize(1);
   if (!read(BME280_H1_CALIBRATION_REGISTER, data_buffer))
     return false;
 
   iterator = data_buffer.begin();
-  getInt8FromBuffer(&iterator, &m_calibration_data->H1);
+  get_le(m_calibration_data->H1, iterator);
 
   data_buffer.resize(BME280_H2_H6_CALIBRATION_REGISTERS_SIZE);
   if (!read(BME280_FIRST_H2_H6_CALIBRATION_REGISTER, data_buffer))
     return false;
 
   iterator = data_buffer.begin();
-  getInt16FromLEBuffer(&iterator, &m_calibration_data->H2);
-  getInt8FromBuffer(&iterator, &m_calibration_data->H3);
+  get_le(m_calibration_data->H2, iterator);
+  get_le(m_calibration_data->H3, iterator);
 
   // Special case: register 0xE5 contains two halves of different values.
   m_calibration_data->H4 = *(iterator++) << 4;
@@ -301,7 +304,7 @@ bool bme_280::get_calibration_data() {
   m_calibration_data->H5 |= (*(iterator)) >> 4;
   iterator += 2;
 
-  getInt8FromBuffer(&iterator, &m_calibration_data->H6);
+  get_le(m_calibration_data->H6, iterator);
 
   m_calibration_data->initialized = true;
 
@@ -347,6 +350,7 @@ bool bme_280::get_data(bme_280::measurement_data &data) {
   if (!m_calibration_data->initialized) {
     if (!get_calibration_data())
       return false;
+    pmUSARTSendDebugText("Got data\r\n");
   }
 
   data.temperature = m_calibration_data->compensate_temperature(temperature);
