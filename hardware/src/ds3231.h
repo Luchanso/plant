@@ -20,6 +20,14 @@ public:
   bool available();
 
   /**
+   * Get temperature from DS3231 clock sensor. Has the prescision of 0.25
+   * degrees C.
+   * @param[out] temperature value to write result to.
+   * @return true if read is successful.
+   */
+  bool get_temperature(uint16_t &temperature);
+
+  /**
    * Read time from DS3231.
    * @param[out] t time structure to write result to.
    * @return true, if read is successful.
