@@ -118,7 +118,15 @@ int main() {
             pmUSARTSendDebugNumber(systemTime.seconds);
             pmUSARTSendDebugText(", ");
             pmUSARTSendDebugText(weekdays[systemTime.dayOfWeek - 1]);
-            pmUSARTSendDebugText("\r\n\r\n");
+
+            uint16_t temperature = 0;
+            if (ds3231.get_temperature(temperature)) {
+              pmUSARTSendDebugText("\r\n DS3231 Temperature = ");
+              pmUSARTSendDebugNumber(temperature);
+              pmUSARTSendDebugText(" / 100 C \r\n");
+            } else {
+              pmUSARTSendDebugText("\r\n DS3231 failed to read temperature.");
+            }
           } else {
             pmUSARTSendDebugText("DS3231 failed to read time\r\n");
           }

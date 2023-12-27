@@ -26,12 +26,26 @@ the time and calendar registers are in the binary-coded decimal(BCD) format."
 
 #define DS3231_AGING_OFFSET_REGISTER (uint8_t)0x10
 
+#define DS3231_TEMPERATURE_REGISTER (uint8_t)0x11
+#define DS3231_TEMPERATURE_REGISTER_SIZE (uint8_t)2
+
 ds_3231::ds_3231(i2c_bus_controller *controller)
     : i2c_peripheral(DS3231_I2C_ADDRESS, controller) {}
 
 bool ds_3231::available() {
   etl::vector<uint8_t, 1> tmp(1);
   return read(DS3231_AGING_OFFSET_REGISTER, tmp);
+}
+
+bool ds_3231::get_temperature(uint16_t &temperature) {
+  alloc_bytevect(response, DS3231_TEMPERATURE_REGISTER_SIZE);
+  if (!read(DS3231_TEMPERATURE_REGISTER, response))
+    return false;
+
+  temperature = response[0] * 100;
+  temperature += (response[1] >> 6) * 25;
+
+  return true;
 }
 
 bool ds_3231::get_time(time &t) {
