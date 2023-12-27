@@ -7,6 +7,7 @@ AtMega328p/PlantMonitor. This code assumes there is only one primary device on
 the bus and it's this one.
 */
 
+#include "convert_util.h"
 #include <etl/memory.h>
 #include <etl/type_traits.h>
 #include <etl/vector.h>
@@ -37,8 +38,7 @@ class i2c_bus_controller {
    * result is greater than 1, function will read multiple registers in a row.
    * @return true if operation was successful.
    */
-  bool read(const uint8_t address, const etl::ivector<uint8_t> &reg_addr,
-            etl::ivector<uint8_t> &result);
+  bool read(const uint8_t addr, const ibytevect &reg_addr, ibytevect &result);
 
   /**
    * Write data to I2C bus. Will do burst write if @p length is greater than 1.
@@ -49,8 +49,7 @@ class i2c_bus_controller {
    * @param data buffer to read data from.
    * @return true if operation was successful.
    */
-  bool write(const uint8_t address, const etl::ivector<uint8_t> &reg_addr,
-             const etl::ivector<uint8_t> &data);
+  bool write(const uint8_t addr, const ibytevect &reg, const ibytevect &data);
 
   friend class i2c_peripheral;
 
@@ -76,12 +75,11 @@ protected:
       : m_bus_address(bus_address), m_bus_controller(bus_controller) {}
   ~i2c_peripheral() = default;
 
-  template <typename T>
-  bool write(const T &reg_addr, const etl::ivector<uint8_t> &data) {
+  template <typename T> bool write(const T &reg_addr, const ibytevect &data) {
     static_assert(etl::is_unsigned<T>::value,
                   "reg_addr can only have unsigned integer type");
 
-    etl::vector<uint8_t, sizeof(T)> addr(sizeof(T));
+    alloc_bytevect(addr, sizeof(T));
     for (uint8_t i = 0; i < sizeof(T); ++i)
       addr[i] = (reg_addr >> (8 * i)) & 0xFF;
 
@@ -93,7 +91,7 @@ protected:
     static_assert(etl::is_unsigned<T>::value,
                   "reg_addr can only have unsigned integer type");
 
-    etl::vector<uint8_t, sizeof(T)> addr(sizeof(T));
+    alloc_bytevect(addr, sizeof(T));
     for (uint8_t i = 0; i < sizeof(T); ++i)
       addr[i] = (reg_addr >> (8 * i)) & 0xFF;
 

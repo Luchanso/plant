@@ -27,7 +27,7 @@ FetchContent_MakeAvailable(etl)
 
 # AVR-GCC usually do not have any standard C++ libs included, this means it's
 # better to disable STL support for ETL to avoid compilation errors.
-add_definitions(-DETL_NO_STL)
+add_definitions(-DETL_NO_STL -DETL_NO_CPP_NAN_SUPPORT)
 
 project(PlantMonitorFirmware
         LANGUAGES C CXX

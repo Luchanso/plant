@@ -28,7 +28,8 @@ void pmUSARTSend(const plantMessage *message);
 /**
  * Copy data from the receiver buffer to heap-allocated memory.
  * @param[out] buffer pointer to heap-allocated copy of the buffer.
- * You MUST free it once you done with it. Won't be modified unless data is available.
+ * You MUST free it once you done with it. Won't be modified unless data is
+ * available.
  * @return size of the @p buffer in bytes.
  */
 uint8_t pmUSARTCopyReceivedData(uint8_t **buffer);
