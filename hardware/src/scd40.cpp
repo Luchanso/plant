@@ -1,6 +1,5 @@
 #include "scd40.h"
 #include "convert_util.h"
-#include "usart.h"
 
 /*
 Refer to SCD4x Datasheet:
@@ -21,15 +20,19 @@ for? (keep in mind, thoose defines are in little endian).
 
 #define SCD40_MEASUREMENT_READY (uint16_t)(0xB8E4)
 #define SCD40_MEASUREMENT_READY_RESP_SIZE (uint8_t)3
-#define SCD40_MEASUREMENT_READY_MASK (uint16_t)0x7FFF
+#define SCD40_MEASUREMENT_READY_MASK (uint16_t)(0x7FFF)
+
 #define SCD40_GET_MEASUREMENT (uint16_t)(0x05EC)
 #define SCD40_MEASUREMENT_RESP_SIZE (uint8_t)9
+
+#define SCD40_COMPENSATION_PRESSURE (uint16_t)(0x00E0)
+#define SCD40_COMPENSATION_PRESSURE_SIZE (uint8_t)3
 
 #define SCD40_GET_SERIAL_NO (uint16_t)(0x8236)
 #define SCD40_GET_SERIAL_NO_RESP_SIZE (uint8_t)9
 
 // CRC after EACH! TWO! BYTES! OF DATA?! WHY!!?!?
-static uint8_t SCD40GenerateCRC(const uint8_t *data, uint8_t count) {
+static uint8_t scd_40_crc(const uint8_t *data, uint8_t count) {
   uint8_t current_byte;
   uint8_t crc = 0xFF;
   uint8_t crc_bit;
@@ -58,6 +61,14 @@ scd_40::scd_40(i2c_bus_controller *controller)
 }
 
 bool scd_40::available() {
+  alloc_bytevect(pressure, SCD40_COMPENSATION_PRESSURE_SIZE);
+  if (!read(SCD40_COMPENSATION_PRESSURE, pressure))
+    return false;
+
+  return !scd_40_crc(pressure.begin(), 3);
+}
+
+bool scd_40::get_serial_number(uint64_t &sn) {
   etl::vector<uint8_t, SCD40_GET_SERIAL_NO_RESP_SIZE> response(
       SCD40_GET_SERIAL_NO_RESP_SIZE);
 
@@ -68,15 +79,28 @@ bool scd_40::available() {
   uint8_t *iterator = response.begin();
   for (uint8_t i = 0; i < SCD40_GET_SERIAL_NO_RESP_SIZE; i += 3)
     // if sequence contains valid CRC in the end, function will return 0
-    if (SCD40GenerateCRC(iterator + i, 3))
+    if (scd_40_crc(iterator + i, 3))
       return false;
+
+  uint16_t word;
+  sn = 0;
+  for (uint8_t i = 0; i < 3; ++i) {
+    get_be(word, iterator);
+    sn <<= 16;
+    sn |= word;
+    ++iterator;
+  }
 
   return true;
 }
 
 bool scd_40::set_compensation_pressure(const uint16_t &hPa) {
-  etl::vector<uint8_t, 1> pressurre;
-  return false;
+  alloc_bytevect(pressure, SCD40_COMPENSATION_PRESSURE_SIZE);
+  uint8_t *iterator = pressure.begin();
+  set_be(hPa, iterator);
+  pressure[2] = scd_40_crc(iterator - 2, 2);
+
+  return write(SCD40_COMPENSATION_PRESSURE, pressure);
 }
 
 bool scd_40::start_measurement() {
@@ -90,14 +114,13 @@ bool scd_40::start_low_power_measurement() {
 }
 
 bool scd_40::measurement_ready() {
-  etl::vector<uint8_t, SCD40_MEASUREMENT_READY_RESP_SIZE> response(
-      SCD40_MEASUREMENT_READY_RESP_SIZE);
+  alloc_bytevect(response, SCD40_MEASUREMENT_READY_RESP_SIZE);
 
   if (!read(SCD40_MEASUREMENT_READY, response))
     return false;
 
   uint8_t *iterator = response.begin();
-  if (SCD40GenerateCRC(iterator, 3))
+  if (scd_40_crc(iterator, 3))
     return false;
 
   uint16_t ready = 0;
@@ -113,26 +136,26 @@ bool scd_40::stop_measurement() {
 }
 
 bool scd_40::get_data(measurement_data &data) {
-  etl::vector<uint8_t, SCD40_MEASUREMENT_RESP_SIZE> response(
-      SCD40_MEASUREMENT_RESP_SIZE);
-
+  alloc_bytevect(response, SCD40_MEASUREMENT_RESP_SIZE);
   if (!read(SCD40_GET_MEASUREMENT, response))
     return false;
 
   uint8_t *iterator = response.begin();
   for (uint8_t i = 0; i < SCD40_MEASUREMENT_RESP_SIZE; i += 3)
-    if (SCD40GenerateCRC(iterator + i, 3))
+    if (scd_40_crc(iterator + i, 3))
       return false;
 
   get_be(data.co2ppm, iterator);
   ++iterator; // skip CRC byte
   get_be(data.temperature, iterator);
   ++iterator;
-  get_be(data.humidity, iterator);
+
+  uint16_t temp;
+  get_be(temp, iterator);
 
   // CO2 ppm is usable as-is, temperature and humidity require some processing.
-  data.temperature = -45 + (data.temperature / 374);
-  data.humidity = (data.humidity / 655);
+  data.temperature = (-4500 + (data.temperature / 3.74f));
+  data.humidity = (temp / 655.35f);
 
   return true;
 }

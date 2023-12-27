@@ -5,8 +5,6 @@
 #include "convert_util.h"
 #include "i2c.h"
 
-#include "usart.h"
-
 /*
 Refer to BME280 datasheet:
 https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
@@ -40,8 +38,8 @@ every time we want to make a measurement. Moreover, for extra power savings
 this device can shut off its power entirely, therefore, all settings could be
 lost and must be re-applied before every measurement.
 */
-#define BME280_CTRL_HUM_VALUE 0x01
-#define BME280_CTRL_MEAS_VALUE 0x25
+#define BME280_CTRL_HUM_VALUE (uint8_t)0x01
+#define BME280_CTRL_MEAS_VALUE (uint8_t)0x25
 #define BME280_CTRL_HUM_REGISTER (uint8_t)0xF2
 #define BME280_STATUS_REGISTER (uint8_t)0xF3
 #define BME280_CTRL_MEAS_REGISTER (uint8_t)0xF4
@@ -50,28 +48,28 @@ lost and must be re-applied before every measurement.
 Status register contains two bits indicating status: 0 and 3. The rest is
 reserved and isn't a valid data, mask it.
 */
-#define BME280_STATUS_REGISTER_MASK 0x05
+#define BME280_STATUS_REGISTER_MASK (uint8_t)0x09
 
 /*
 Section 5.4.1 of the datasheet claims that reading chip ID register should
 always return 0x60.
 */
 #define BME280_CHIP_ID_REGISTER (uint8_t)0xD0
-#define BME280_CHIP_ID 0x60
+#define BME280_CHIP_ID (uint8_t)0x60
 
 /*
 Section 6.2 mentions the two possible I2C addresses, 0x76 if SDO pin is
 connected to GND and 0x77, if SDO pin is connected to Vcc. Vcc pin is
 connnected to GND on my BME280 breakout board.
 */
-#define BME280_I2C_ADDRESS 0x76
+#define BME280_I2C_ADDRESS (uint8_t)0x76
 
 /*
 Registers containing raw ADC values for various parameters. Values make no sense
 without proper conversion.
 */
 #define BME280_FIRST_DATA_REGISTER (uint8_t)0xF7
-#define BME280_DATA_REGISTERS 8
+#define BME280_DATA_REGISTERS (uint8_t)8
 
 /*
 As mentioned in unit 4.2 of the datasheed, measured data is just a set of ADC
@@ -109,12 +107,12 @@ struct bme_280::calibration_data {
 };
 
 #define BME280_FIRST_T_P_CALIBRATION_REGISTER (uint8_t)0x88
-#define BME280_T_P_CALIBRATION_REGISTERS_SIZE 24
+#define BME280_T_P_CALIBRATION_REGISTERS_SIZE (uint8_t)24
 
 #define BME280_H1_CALIBRATION_REGISTER (uint8_t)0xA1
 
 #define BME280_FIRST_H2_H6_CALIBRATION_REGISTER (uint8_t)0xE1
-#define BME280_H2_H6_CALIBRATION_REGISTERS_SIZE 7
+#define BME280_H2_H6_CALIBRATION_REGISTERS_SIZE (uint8_t)7
 
 /*
 A little reworked compensation formulas from unit 8.2 and 4.2.3 of the
@@ -229,7 +227,7 @@ bme_280::bme_280(i2c_bus_controller *controller)
       m_calibration_data(new bme_280::calibration_data) {}
 
 bool bme_280::available() {
-  etl::vector<uint8_t, 1> chipID(1);
+  alloc_bytevect(chipID, 1);
   if (!read(BME280_CHIP_ID_REGISTER, chipID))
     return false;
 
@@ -237,8 +235,8 @@ bool bme_280::available() {
 }
 
 bool bme_280::start_measurement() {
-  const etl::vector<uint8_t, 1> hum_reg_value = {BME280_CTRL_HUM_VALUE};
-  const etl::vector<uint8_t, 1> meas_reg_val = {BME280_CTRL_MEAS_VALUE};
+  const bytevect<1> hum_reg_value = {BME280_CTRL_HUM_VALUE};
+  const bytevect<1> meas_reg_val = {BME280_CTRL_MEAS_VALUE};
 
   if (!write(BME280_CTRL_HUM_REGISTER, hum_reg_value))
     return false;
@@ -250,7 +248,7 @@ bool bme_280::start_measurement() {
 }
 
 bool bme_280::idle() {
-  etl::vector<uint8_t, 1> status = {0xFF};
+  bytevect<1> status = {0xFF};
   if (!read(BME280_STATUS_REGISTER, status))
     return false;
 
@@ -258,10 +256,8 @@ bool bme_280::idle() {
 }
 
 bool bme_280::get_calibration_data() {
-  etl::vector<uint8_t, BME280_T_P_CALIBRATION_REGISTERS_SIZE> data_buffer(
-      BME280_T_P_CALIBRATION_REGISTERS_SIZE);
+  alloc_bytevect(data_buffer, BME280_T_P_CALIBRATION_REGISTERS_SIZE);
 
-  pmUSARTSendDebugText("querying data 1...");
   if (!read(BME280_FIRST_T_P_CALIBRATION_REGISTER, data_buffer))
     return false;
 
@@ -296,7 +292,7 @@ bool bme_280::get_calibration_data() {
   get_le(m_calibration_data->H2, iterator);
   get_le(m_calibration_data->H3, iterator);
 
-  // Special case: register 0xE5 contains two halves of different values.
+  // Special case: register 0xE5 contains two nibbles of different values.
   m_calibration_data->H4 = *(iterator++) << 4;
   m_calibration_data->H4 |= (*(iterator)&0xF);
 
@@ -350,12 +346,11 @@ bool bme_280::get_data(bme_280::measurement_data &data) {
   if (!m_calibration_data->initialized) {
     if (!get_calibration_data())
       return false;
-    pmUSARTSendDebugText("Got data\r\n");
   }
 
   data.temperature = m_calibration_data->compensate_temperature(temperature);
-  data.pressure = m_calibration_data->compensate_pressure(pressure);
-  data.humidity = m_calibration_data->compensate_humidity(humidity);
+  data.pressure = m_calibration_data->compensate_pressure(pressure) / 10;
+  data.humidity = m_calibration_data->compensate_humidity(humidity) / 1024;
 
   return true;
 }

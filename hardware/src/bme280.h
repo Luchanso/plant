@@ -20,9 +20,12 @@ class bme_280 : protected i2c_peripheral {
 
 public:
   struct measurement_data {
-    uint32_t pressure;
-    int32_t temperature;
-    uint32_t humidity;
+    // pressure, daPa
+    uint16_t pressure;
+    // temperature / 100
+    int16_t temperature;
+    // relative humidity, %
+    uint8_t humidity;
   };
 
   bme_280(i2c_bus_controller *);
