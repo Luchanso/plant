@@ -1,4 +1,5 @@
 #include <avr/interrupt.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,8 +10,7 @@
 #define __PLANT_MESSAGE_STRUCT
 #include "plant_message_struct.h"
 
-#define __PLANT_MESSAGE_USART_TIMER
-#include "timer_usart.h"
+#include "timers.h"
 
 /*
 Refer to Atmega328p datasheet, section 19:
@@ -22,6 +22,60 @@ Using the table 19-12 of the datasheet, select value for baudrate 115200
 */
 #define UBRRVAL 8
 
+#ifdef DEAD_CODE
+usart::usart(const uint32_t &baudrate) {
+
+  set_baudrate(baudrate);
+
+  /*
+  Using USART 0 Control and Status Register 0 C, set operation mode:
+  Asynchronous 8 bits per frame, No parity, 1 stop bit
+  UMSEL00 and UMSEL01 both set to zero = asynchronous USART mode
+  UPM00 and UPM01 both set to zero = no parity
+  USBS0 set to zero = 1 stop bit
+  UCSZ00 and UCSZ01 set to one whlie UCSZ02 is set to zero = 8 bits per frame
+  */
+  UCSR0C = (1 << UCSZ00) | (1 << UCSZ01);
+
+  /*
+  Using USART 0 Control and Status Register 0 B (U C S R 0 B), enable:
+    - Recieve Complete Interrupt 0 (RX C I E 0)
+    - Transmit Complete Interrupt 0 (TX C I E 0)
+    - USART 0 Transmitter (TX EN 0)
+    - USART 0 Receiver (RX EN 0)
+  */
+  UCSR0B |= (1 << RXCIE0) | (1 << TXCIE0) | (1 << TXEN0) | (1 << RXEN0);
+}
+
+bool usart::set_baudrate(uint32_t baudrate) {
+  /*
+  Enable the double transmission speed. It is always preferable to have this
+  enabled, as it usually means more accurate baudrate and higher maximum
+  transmission speed.
+  */
+  UCSR0A |= _BV(U2X0);
+
+  /*
+  Table 19.1 of the datasheet gives the formula for a baudrate calculation:
+  baudrate = F_CPU / (8 (UBRR + 1))
+  Solving the formula above for the UBRR gives this formula:
+  UBRR = F_CPU / baudrate / 8  - 1
+  */
+  baudrate = ((uint32_t)F_CPU / baudrate / 8 - 1);
+
+  /*
+  UBRR prescaler has the capacity of 8 bits. If the baudrate exceeds this limit,
+  it is unachievable.
+  */
+  if (baudrate > UINT8_MAX)
+    return false;
+
+  UBRR0 = (uint8_t)baudrate;
+
+  return true;
+}
+#endif
+
 // Dump all received bytes here
 volatile uint8_t rxBuffer[USART_BUFFER_SIZE] = {};
 
@@ -32,8 +86,9 @@ static volatile uint8_t bytesReceived = 0;
 static volatile uint8_t bytesToSend = 0;
 static volatile uint8_t bytesSent = 0;
 
+void (*pmUSARTLineIdleCallback)(void) = nullptr;
+
 void pmUSARTInit() {
-  cli();
   /*
   Set the Baud rate using USART Baud Rate Register 0
   */
@@ -57,8 +112,6 @@ void pmUSARTInit() {
     - USART 0 Receiver (RX EN 0)
   */
   UCSR0B |= (1 << RXCIE0) | (1 << TXCIE0) | (1 << TXEN0) | (1 << RXEN0);
-
-  sei();
 }
 
 void pmUSARTSend(const plantMessage *message) {
@@ -89,9 +142,16 @@ ISR(USART_RX_vect) {
     rxBuffer[bytesReceived] = UDR0;
     ++bytesReceived;
 
-    // Restart line idle detection
-    pmStopSerialLineIdleTimer();
-    pmStartSerialLineIdleTimer();
+    timer_manager_instance::callback_timer t;
+    t.timeout = 100;
+    t.id = timer_ids::usart_line_idle;
+    t.repeating = false;
+    t.callback = []() {
+      if (pmUSARTLineIdleCallback)
+        pmUSARTLineIdleCallback();
+    };
+
+    timer_manager::instance().add_milliseconds_timer(etl::move(t));
   }
   sei();
 }

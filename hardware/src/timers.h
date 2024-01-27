@@ -1,32 +1,45 @@
 #pragma once
 /// By gh/BortEngineerDude for gh/Luchanso
 
-// Use Atmega328p hardware timer interrupts for plant monitor
+// Hardware timer wrapper for plant monitor
 
-#if defined(__cplusplus)
-extern "C" {
+#include <etl/delegate.h>
+#include <etl/memory.h>
+#include <etl/singleton.h>
+#include <stdint.h>
+
+#ifndef PLANT_MONITOR_MAX_TIMERS
+#define PLANT_MONITOR_MAX_TIMERS 8
 #endif
 
-/**
- * Init hardwire timer 1 and COMPA/COMPB interrupts.
- * @param OneSecondCallback this callback will be called every second as long as
- * one second timer is running.
- * @param LineIdleCallback this callback be called after 3.5 characters of
- * silence on receiving side of USART.
- */
-void pmSetupTimersInterrupts(void (*OneSecondCallback)(),
-                             void (*LineIdleCallback)());
+enum timer_ids : uint8_t { usart_line_idle, one_second };
 
-/*
- * Enable the timer 1 interrupt each second.
- */
-void pmStartOneSecondTimer();
+class timer_manager_instance {
+  struct impl;
+  etl::unique_ptr<impl> m_impl;
 
-/*
- * Disable the timer 1 interrupt each second.
- */
-void pmStopOneSecondTimer();
+  timer_manager_instance();
+  friend class etl::singleton<timer_manager_instance>;
 
-#if defined(__cplusplus)
-}
-#endif
+public:
+  using callback = etl::delegate<void(void)>;
+  struct callback_timer {
+    bool repeating = true;
+    uint8_t id; // deliberately not set, possible randomness kinda favors it
+    uint32_t ticks = 0;
+    uint32_t timeout = 0;
+    timer_manager_instance::callback callback;
+    bool expired() { return ticks >= timeout; }
+  };
+
+  bool add_seconds_timer(callback_timer &&t);
+  bool add_milliseconds_timer(callback_timer &&t);
+  void remove_timer(const uint8_t id);
+  void process_callbacks();
+
+  void seconds_interrupt();
+  void milliseconds_interrupt();
+};
+
+using timer_manager = etl::singleton<timer_manager_instance>;
+

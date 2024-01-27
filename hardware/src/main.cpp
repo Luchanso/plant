@@ -1,3 +1,4 @@
+#include <avr/delay.h>
 #include <stdlib.h>
 
 #include "avr-gpio.h"
@@ -42,13 +43,24 @@ void oneSecond() {
 }
 
 void setup() {
-  pmSetupTimersInterrupts(&oneSecond, &serialLineIdle);
-  pmStartOneSecondTimer();
+  timer_manager::create();
+
+  timer_manager_instance::callback_timer t;
+  t.callback = timer_manager_instance::callback::create<oneSecond>();
+  t.repeating = true;
+  t.timeout = 1;
+  t.id = timer_ids::one_second;
+
+  timer_manager::instance().add_seconds_timer(etl::move(t));
+
+  pmUSARTLineIdleCallback = serialLineIdle;
+
   pmUSARTInit();
 
   inPm = pmCreate();
   outPm = pmCreate();
 
+  pmUSARTSendDebugText("Starting...\r\n");
   if (!scd40.start_measurement())
     pmUSARTSendDebugText("SCD40 failed to start measurement\r\n");
 
@@ -94,6 +106,7 @@ int main() {
   setup();
 
   while (1) {
+    timer_manager::instance().process_callbacks();
 
     if (debug) {
       debug = false;
