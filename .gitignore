@@ -36,4 +36,4 @@ infra/prometheus/prometheus-data
 **/*.cache
 
 #vim session file
-session.vim
+Session.vim

@@ -17,7 +17,6 @@ target_sources(
     scd40.cpp
     scd40.h
     time_struct.h
-    timer_usart.h
     timers.cpp
     timers.h
     usart.cpp

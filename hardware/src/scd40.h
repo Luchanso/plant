@@ -62,7 +62,7 @@ public:
   bool start_low_power_measurement();
 
   /**
-   * Check for new data
+   * Check for the new data.
    * @return true if SCD40 has measurement data to send
    */
   bool measurement_ready();

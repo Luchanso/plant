@@ -73,7 +73,6 @@ class i2c_peripheral {
 protected:
   i2c_peripheral(uint8_t bus_address, i2c_bus_controller *bus_controller)
       : m_bus_address(bus_address), m_bus_controller(bus_controller) {}
-  ~i2c_peripheral() = default;
 
   template <typename T> bool write(const T &reg_addr, const ibytevect &data) {
     static_assert(etl::is_unsigned<T>::value,

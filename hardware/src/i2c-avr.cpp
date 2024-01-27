@@ -17,8 +17,7 @@ https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcont
 class i2c_bus_controller::i2c_bus_impl {
 public:
   i2c_bus_impl(const uint32_t &scl_frequency_hz) {
-    if (!set_scl_freq(scl_frequency_hz))
-      return;
+    set_scl_freq(scl_frequency_hz);
 
     // Pull I2C pins high and leave them to the integrated I2C module
     I2C_PORT |= _BV(I2C_SDA_PIN) | _BV(I2C_SCL_PIN);
@@ -45,11 +44,11 @@ public:
       AtMega328p offers 4 possible prescaler values: 1, 4, 16, 64 by setting
       TWPS0 and TWPS1 bits in TWSR register. 0 corresponds to prescaler value of
       1; 3 corresponds to prescaler value of 64. If twbr value does not fit into
-      8-bit register, divide twbr by 4 while increasing prescaler option.
+      8-bit register, divide twbr by 4 while increasing the prescaler option.
       */
       twbr <<= 2;
       ++prescaler;
-      // maximum prescaling reached, abort construction.
+      // maximum prescaling reached, abort.
       if (prescaler > 3)
         return false;
     }
@@ -65,10 +64,10 @@ public:
 
   bool send_start() {
     // Send START condition
-    TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTA);
+    TWCR = _BV(TWINT) | _BV(TWEN) | (1 << TWSTA);
 
     // Wait for TWINT flag to set
-    while (!(TWCR & (1 << TWINT)))
+    while (!(TWCR & _BV(TWINT)))
       ;
 
     // Check error
@@ -78,14 +77,14 @@ public:
     return true;
   }
 
-  void send_stop() { TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); }
+  void send_stop() { TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWSTO); }
 
   bool set_address(uint8_t address, bool write) {
     TWDR = (address << 1) | (uint8_t)(write ? 0 : 1);
-    TWCR = (1 << TWINT) | (1 << TWEN);
+    TWCR = _BV(TWINT) | _BV(TWEN);
 
     // Wait for TWINT flag to set
-    while (!(TWCR & (1 << TWINT)))
+    while (!(TWCR & _BV(TWINT)))
       ;
 
     if (!(TW_STATUS == TW_MT_SLA_ACK || TW_STATUS == TW_MR_SLA_ACK))
@@ -97,10 +96,10 @@ public:
   bool write_byte(const uint8_t byte) {
     // Transmit 1 byte
     TWDR = byte;
-    TWCR = (1 << TWINT) | (1 << TWEN);
+    TWCR = _BV(TWINT) | _BV(TWEN);
 
     // Wait for TWINT flag to set
-    while (!(TWCR & (1 << TWINT)))
+    while (!(TWCR & _BV(TWINT)))
       ;
 
     // Wait for ACK
@@ -111,10 +110,10 @@ public:
   }
 
   bool read_byte(uint8_t &byte, bool sendAck) {
-    TWCR = (1 << TWINT) | (1 << TWEN) | (sendAck ? (1 << TWEA) : 0);
+    TWCR = _BV(TWINT) | _BV(TWEN) | (sendAck ? _BV(TWEA) : 0);
 
     // Wait for operation to complete
-    while (!(TWCR & (1 << TWINT)))
+    while (!(TWCR & _BV(TWINT)))
       ;
 
     if (sendAck) {
@@ -128,6 +127,8 @@ public:
     byte = TWDR;
     return true;
   }
+
+  bool ready() { return (TWCR & _BV(TWEN)) && !(TWCR & _BV(TWINT)); }
 };
 
 i2c_bus_controller::i2c_bus_controller(const uint32_t &scl_frequency_hz)
@@ -203,3 +204,5 @@ bool i2c_bus_controller::write(const uint8_t address, const ibytevect &reg_addr,
 
   return true;
 }
+
+bool i2c_bus_controller::ready() { return m_impl->ready(); }

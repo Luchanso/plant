@@ -290,6 +290,7 @@ function( add_avr_executable EXECUTABLE_NAME )
         -fshort-enums
         -funsigned-char
         -funsigned-bitfields
+				-fno-threadsafe-statics
         -mmcu=${AVR_MCU}
         -DF_CPU=${AVR_MCU_SPEED}
    )
@@ -420,6 +421,7 @@ function( add_avr_library LIBRARY_NAME )
         -fpack-struct
         -fshort-enums
         -funsigned-char
+			  -fno-threadsafe-statics
         -funsigned-bitfields
         -mmcu=${AVR_MCU}
         -DF_CPU=${AVR_MCU_SPEED}
